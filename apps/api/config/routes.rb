@@ -236,6 +236,8 @@ Rails.application.routes.draw do
         get  "ai-carousel/:product_id",       to: "reviews#ai_carousel"
         get  "ai-summary-topics/:product_id", to: "ai_summary_topics#index"
         get  "featured",                to: "reviews#featured"
+        get  "real-reviews",            to: "reviews#real_index"
+        get  "real-summary",            to: "reviews#real_summary"
         post "submit",                  to: "reviews#submit"
         post "reviews/:id/helpful",     to: "reviews#helpful"
         post "reviews/:id/unhelpful",   to: "reviews#unhelpful"

@@ -49,6 +49,23 @@ class Review < ApplicationRecord
   scope :search_body,  ->(q) { where("body ILIKE ?", "%#{q}%") }
   scope :most_helpful, -> { order(helpful_count: :desc, created_at: :desc) }
 
+  # Reviews safe to show as social proof on a third-party surface (and to feed
+  # Google structured data): approved AND not machine-written.
+  #
+  # Machine-written rows carry TWO markers, and both are checked on purpose:
+  #   - `ai_is_synthetic` — set to true by `ai/bulk-create-reviews` and
+  #     `reviews/bulk_import`, but ALSO overwritten by the moderation worker
+  #     (Ai::ModerateService) with whatever the detector decides, so a
+  #     generated row can come back `false` from a re-run;
+  #   - `metadata.ai_generated` — written once at creation, never touched again.
+  # A row is "real" only when NEITHER marker says otherwise. `= false` (not
+  # `IS NOT TRUE`) so a NULL flag is treated as unknown, i.e. excluded.
+  scope :real, -> {
+    approved
+      .where(ai_is_synthetic: false)
+      .where("COALESCE(reviews.metadata->>'ai_generated', 'false') <> 'true'")
+  }
+
   def approved?  = status == "approved"
   def pending?   = status == "pending"
   def rejected?  = status == "rejected"
