@@ -190,6 +190,70 @@ module Api
           }
         end
 
+        # GET /api/v1/public/real-reviews
+        # Workspace-wide reviews that are REAL: approved and not AI-generated
+        # (see Review.real). Built for third-party surfaces that publish the
+        # rating as social proof and as Google structured data — the existing
+        # `featured`/`reviews` endpoints serve every approved row, including
+        # ones created by ai/bulk-create-reviews or reviews/bulk_import.
+        #
+        # Params: page, per_page (<=50), min_rating, verified, with_video,
+        #         product_title (repeatable; case-insensitive "contains").
+        # Exposes `source` and `is_verified_purchase` so the consumer can say
+        # where each review came from.
+        def real_index
+          scope = real_scope.includes(:review_media, :replies, :product)
+                            .order(created_at: :desc)
+          pagy, reviews = pagy(scope, page: params[:page], limit: [(params[:per_page] || 20).to_i.clamp(1, 50), 50].min)
+
+          render json: {
+            data: reviews.map { |r| real_serialize(r) },
+            meta: {
+              current_page: pagy.page,
+              total_pages: pagy.pages,
+              total_count: pagy.count,
+              per_page: pagy.limit,
+              filter: REAL_FILTER
+            }
+          }
+        end
+
+        # GET /api/v1/public/real-summary
+        # Same scope as real-reviews: count, mean and 1..5 distribution over
+        # real reviews only, plus how many are verified purchases and which
+        # products they belong to (so a consumer can offer a product filter).
+        def real_summary
+          scope = real_scope
+          total = scope.count
+          avg   = total.positive? ? scope.average(:rating).to_f.round(2) : 0.0
+          by_rating = scope.group(:rating).count
+
+          dist = (1..5).map { |r|
+            count = by_rating[r].to_i
+            { rating: r, count: count, percentage: total.positive? ? (count.to_f / total * 100).round(1) : 0.0 }
+          }
+
+          products = @workspace.reviews.real
+                               .where.not(product_id: nil)
+                               .joins(:product)
+                               .group("products.title")
+                               .order(Arel.sql("COUNT(*) DESC"))
+                               .limit(50)
+                               .count
+                               .map { |title, count| { title: title, count: count } }
+
+          render json: {
+            data: {
+              total_reviews: total,
+              avg_rating: avg,
+              rating_distribution: dist,
+              verified_count: scope.where(is_verified_purchase: true).count,
+              products: products,
+              filter: REAL_FILTER
+            }
+          }
+        end
+
         # POST /api/v1/public/reviews/:id/helpful
         def helpful
           review = @workspace.reviews.approved.find(params[:id])
@@ -366,6 +430,32 @@ module Api
               image_url: review.product.image_url,
             },
           }
+        end
+
+        REAL_FILTER = "approved,non_ai_generated".freeze
+
+        # Review.real + the optional narrowing params. Never widens: every
+        # param only removes rows from the already-real set.
+        def real_scope
+          scope = @workspace.reviews.real
+          scope = scope.where("reviews.rating >= ?", params[:min_rating].to_i.clamp(1, 5)) if params[:min_rating].present?
+          scope = scope.verified    if truthy?(params[:verified])
+          scope = scope.with_video  if truthy?(params[:with_video])
+
+          titles = Array(params[:product_title]).map { |t| t.to_s.strip }.reject(&:blank?).first(10)
+          if titles.any?
+            clauses = titles.map { "products.title ILIKE ?" }.join(" OR ")
+            patterns = titles.map { |t| "%#{ActiveRecord::Base.sanitize_sql_like(t)}%" }
+            scope = scope.joins(:product).where(clauses, *patterns)
+          end
+          scope
+        end
+
+        def real_serialize(review)
+          public_serialize(review).merge(
+            source: review.source,
+            product: review.product && { id: review.product.id, title: review.product.title }
+          )
         end
 
         # Persist uploaded photos / videos onto MinIO via StorageService and
