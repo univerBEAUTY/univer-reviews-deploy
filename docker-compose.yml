@@ -53,7 +53,7 @@ services:
 
   # ─── MinIO Init (create bucket) ─────────────────────────────────────────────
   minio-init:
-    image: minio/mc:latest
+    image: quay.io/minio/mc:latest
     restart: "no"
     depends_on:
       minio:
