@@ -1,7 +1,7 @@
 class AiJob < ApplicationRecord
   belongs_to :workspace
 
-  JOB_TYPES = %w[moderate generate reply sentiment translate dedup embed].freeze
+  JOB_TYPES = %w[moderate generate reply sentiment translate dedup embed course_brief].freeze
   STATUSES   = %w[pending running done failed].freeze
 
   validates :job_type, inclusion: { in: JOB_TYPES }

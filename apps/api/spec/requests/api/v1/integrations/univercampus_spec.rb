@@ -157,7 +157,8 @@ RSpec.describe "Integração UniverCampus", type: :request do
                    url: "https://campus.example.com/c/mechas", atualizadoEm: "2026-10-20T12:00:00Z" }]
       }.to_json)
 
-      post "/api/v1/integrations/univercampus/sync?inline=true", headers: headers
+      expect { post "/api/v1/integrations/univercampus/sync?inline=true", headers: headers }
+        .to have_enqueued_job(UnivercampusSyncJob).with(workspace.id, briefs_only: true)
 
       expect(body).to include("ok" => true, "synced" => 1)
       expect(workspace.products.where(platform: "univercampus").count).to eq(1)

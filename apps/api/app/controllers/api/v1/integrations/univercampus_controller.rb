@@ -111,7 +111,10 @@ module Api
             return
           end
 
-          render json: ::Integrations::Univercampus::CourseSyncer.run(connection: connection)
+          result = ::Integrations::Univercampus::CourseSyncer.run(connection: connection)
+          # Resumos IA saem da request (1 chamada Haiku por curso alterado).
+          UnivercampusSyncJob.perform_later(current_workspace.id, briefs_only: true) unless result[:stage]
+          render json: result
         rescue Client::Error => e
           render json: { ok: false, stage: "connection", error: e.message, synced: 0, failed: 0 }
         end
