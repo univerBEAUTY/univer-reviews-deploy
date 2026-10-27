@@ -236,9 +236,10 @@ export default function UnivercampusPage() {
                 </div>
               </div>
 
-              <dl className="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-4">
+              <dl className="grid grid-cols-2 sm:grid-cols-5 gap-4 mb-4">
                 {[
                   ['Cursos', (config.course_count ?? 0).toLocaleString('pt-BR')],
+                  ['Escolas', (config.school_count ?? 0).toLocaleString('pt-BR')],
                   ['Avaliações publicadas', (config.review_count ?? 0).toLocaleString('pt-BR')],
                   ['Último sync', relative(config.last_synced_at)],
                   ['Último envio', relative(config.last_pushed_at)],
@@ -305,8 +306,9 @@ export default function UnivercampusPage() {
             </h2>
             <p className="text-xs mb-4 leading-relaxed" style={{ color: 'var(--ur-text-soft)' }}>
               No UniverCampus, abra Configurações → UniverReview e gere um token. Ele vale para
-              todas as escolas em que você é dono. Os cursos viram produtos aqui e as avaliações
-              aprovadas aparecem como estrelas e depoimentos na página de venda.
+              todas as escolas em que você é dono. Os cursos e as próprias escolas viram produtos
+              aqui; as avaliações aprovadas aparecem como estrelas e depoimentos na página de venda
+              do curso ou na página da escola.
             </p>
 
             <label htmlFor="uc-base-url" className="block text-xs font-medium mb-1.5" style={{ color: 'var(--ur-text-muted)' }}>

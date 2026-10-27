@@ -99,4 +99,44 @@ RSpec.describe Ai::CourseBriefService, type: :service do
     expect(service.call(product)).to eq(:not_found)
     expect(product.reload.active).to be(false)
   end
+
+  context "escola" do
+    let!(:school) do
+      create(:product, :univercampus, workspace: workspace, platform_product_id: "escola:esc_1", title: "Escola Um",
+             description: "<p>Formação para cabeleireiras</p>", image_url: "https://cdn.example.com/logo.png",
+             metadata: { "univercampus" => { "tipo" => "escola", "escola" => { "id" => "esc_1" } } })
+    end
+
+    before do
+      product.update!(description: "Domine mechas", metadata: { "univercampus" => { "escola" => { "id" => "esc_1" } } })
+      create(:product, :univercampus, workspace: workspace, title: "De outra escola",
+             metadata: { "univercampus" => { "escola" => { "id" => "esc_2" } } })
+    end
+
+    it "resume a escola pela descrição e pelos cursos dela, sem chamar a API do curso" do
+      stub_claude(text: "Escola para cabeleireiras.")
+      expect(client).not_to receive(:course_content)
+
+      expect(service.call(school)).to eq(:updated)
+
+      blocks = claude_request_blocks
+      text = blocks.find { |b| b["type"] == "text" }["text"]
+      expect(text).to include("Escola Um", "Formação para cabeleireiras", "- Mechas Perfeitas: Domine mechas")
+      expect(text).not_to include("De outra escola", "<p>")
+      expect(school.reload.metadata["ai_brief"]).to eq("Escola para cabeleireiras.")
+      expect(school.metadata["ai_brief_digest"]).to be_present
+    end
+
+    it "não chama a IA de novo se a escola e os cursos não mudaram" do
+      stub_claude
+      service.call(school)
+      expect(service.call(school.reload)).to eq(:unchanged)
+    end
+
+    it "escola sem descrição e sem cursos não gera resumo" do
+      empty = create(:product, :univercampus, workspace: workspace, platform_product_id: "escola:esc_9", title: "Vazia")
+      expect(service.call(empty)).to eq(:skipped_empty)
+      expect(a_request(:post, Ai::BaseService::API_URL)).not_to have_been_made
+    end
+  end
 end

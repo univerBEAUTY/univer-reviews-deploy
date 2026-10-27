@@ -6,6 +6,7 @@ module Api
       # escrita exige require_write!. O token nunca sai em nenhuma resposta.
       class UnivercampusController < ApplicationController
         Client   = ::Integrations::Univercampus::Client
+        School   = ::Integrations::Univercampus::School
         PLATFORM = ::Integrations::Univercampus::CourseSyncer::PLATFORM
 
         # Chaves do Active Record Encryption ausentes/trocadas no servidor:
@@ -160,8 +161,12 @@ module Api
           { connected: false, base_url: UnivercampusConnection.default_base_url }
         end
 
-        def course_products
+        def univercampus_products
           current_workspace.products.where(platform: PLATFORM, active: true)
+        end
+
+        def course_products
+          School.filter(univercampus_products, except: true)
         end
 
         def published_reviews
@@ -177,6 +182,7 @@ module Api
           connection.as_payload.merge(
             schools:      schools,
             course_count: course_products.count,
+            school_count: School.filter(univercampus_products).count,
             review_count: published_reviews.count
           )
         end

@@ -7,8 +7,12 @@ module Ai
   # resumo (`metadata.ai_brief_digest`), nada é chamado. A capa vai como bloco
   # de imagem por URL (só https).
   #
+  # Escola (produto "escola:<id>") não chama a API: o texto é a descrição dela
+  # mais os cursos ativos já sincronizados (título + começo da descrição), e o
+  # digest é o SHA-256 desse texto.
+  #
   # Nunca levanta para quem chama (o sync segue): devolve
-  # :updated | :unchanged | :skipped_cap | :not_found | :failed.
+  # :updated | :unchanged | :skipped_cap | :skipped_empty | :not_found | :failed.
   class CourseBriefService < BaseService
     include ::Integrations::Univercampus::WorkspaceScope
 
@@ -25,13 +29,28 @@ module Ai
       Responda apenas com o resumo.
     PROMPT
 
+    SCHOOL_PROMPT = <<~PROMPT.freeze
+      Você resume escolas online para quem vai escrever avaliações de alunos sobre
+      a escola como um todo. Escreva em português do Brasil, em texto corrido, sem
+      markdown e sem listas, com no máximo #{MAX_CHARS} caracteres, cobrindo: o que
+      a escola ensina, para quem, os cursos de destaque, a proposta e o tom. Use só
+      o que estiver no texto e na logo — não invente.
+      Responda apenas com o resumo.
+    PROMPT
+
+    SCHOOL_COURSES       = 30
+    SCHOOL_COURSE_CHARS  = 200
+    SCHOOL_DESCRIPTION   = 2_000
+
     def initialize(workspace, client:)
       super(workspace)
       @client = client
     end
 
     def call(product)
-      content  = @client.course_content(product.platform_product_id)
+      school   = ::Integrations::Univercampus::School.school?(product)
+      content  = school ? school_content(product) : @client.course_content(product.platform_product_id)
+      return :skipped_empty if school && content["texto"].blank? # só o nome: a IA inventaria
       digest   = content["digest"].to_s
       metadata = product.metadata.is_a?(Hash) ? product.metadata : {}
       return :unchanged if digest.present? && metadata["ai_brief_digest"] == digest
@@ -42,9 +61,9 @@ module Ai
 
         text = call_claude(
           model:      HAIKU,
-          system:     SYSTEM_PROMPT,
+          system:     school ? SCHOOL_PROMPT : SYSTEM_PROMPT,
           max_tokens: MAX_TOKENS,
-          messages:   [{ role: "user", content: content_blocks(product, metadata, content) }]
+          messages:   [{ role: "user", content: content_blocks(product, metadata, content, school) }]
         )
         brief = clean(text)
         next :failed if brief.blank?
@@ -67,10 +86,43 @@ module Ai
 
     private
 
-    def content_blocks(product, metadata, content)
+    def school_content(product)
+      school_id = ::Integrations::Univercampus::School.school_id(product)
+      courses = with_rls(@workspace.id) do
+        @workspace.products
+                  .where(platform: product.platform, active: true)
+                  .where("metadata->'univercampus'->'escola'->>'id' = ?", school_id)
+                  .where.not(id: product.id)
+                  .order(:title)
+                  .limit(SCHOOL_COURSES)
+                  .pluck(:title, :description)
+      end
+
+      lines = courses.map do |title, description|
+        about = plain(description).truncate(SCHOOL_COURSE_CHARS, separator: " ")
+        about.present? ? "- #{title}: #{about}" : "- #{title}"
+      end
+      text = [
+        plain(product.description).truncate(SCHOOL_DESCRIPTION, separator: " ").presence,
+        ("Cursos:\n#{lines.join("\n")}" if lines.any?)
+      ].compact.join("\n\n")
+
+      { "digest" => Digest::SHA256.hexdigest(text), "texto" => text, "cortado" => false }
+    end
+
+    def plain(html)
+      html.to_s.gsub(/<[^>]+>/, " ").gsub(/\s+/, " ").strip
+    end
+
+    def content_blocks(product, metadata, content, school = false)
       blocks = []
       if product.image_url.to_s.start_with?("https://")
         blocks << { type: "image", source: { type: "url", url: product.image_url } }
+      end
+
+      if school
+        blocks << { type: "text", text: "Escola: #{product.title}\n\n#{content['texto']}" }
+        return blocks
       end
 
       escola = metadata.dig("univercampus", "escola")

@@ -259,6 +259,8 @@ export interface Product {
   id: string
   workspace_id: string
   external_id: string | null
+  /** id na plataforma de origem; escola do UniverCampus vem como "escola:<id>". */
+  platform_product_id?: string | null
   name: string
   slug: string
   image_url: string | null
@@ -500,6 +502,8 @@ export interface UnivercampusConfig {
   last_pushed_at?: string | null
   last_error?: string | null
   course_count?: number
+  /** Escolas avaliáveis (produtos "escola:<id>"). */
+  school_count?: number
   review_count?: number
 }
 

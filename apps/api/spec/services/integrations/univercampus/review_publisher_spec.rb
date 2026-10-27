@@ -133,4 +133,15 @@ RSpec.describe Integrations::Univercampus::ReviewPublisher, type: :service do
     expect(publisher.publish_all).to include(upserted: 1, deleted: 0)
     expect(sent_items.map { |item| item["idExterno"] }).to eq([approved.id])
   end
+
+  it "review de escola vai com escolaId e sem cursoId" do
+    school = create(:product, :univercampus, workspace: workspace, platform_product_id: "escola:esc_1", title: "Escola Um")
+    review = create(:review, :approved, workspace: workspace, product: school, body: "Atendimento impecável")
+    stub_put
+
+    expect(publisher.call(review_ids: [review.id])).to include(ok: true, upserted: 1)
+    item = sent_items.first
+    expect(item).to include("idExterno" => review.id, "escolaId" => "esc_1", "texto" => "Atendimento impecável")
+    expect(item).not_to have_key("cursoId")
+  end
 end

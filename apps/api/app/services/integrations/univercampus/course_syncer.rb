@@ -1,9 +1,10 @@
 module Integrations
   module Univercampus
-    # Lê todos os cursos que o token enxerga e faz upsert como produtos
-    # `platform: "univercampus"` (platform_product_id = id do curso). Cursos
-    # que sumiram da API (arquivados ou de escola que o dono perdeu) viram
-    # `active: false`; voltam a `true` se reaparecerem.
+    # Lê todos os cursos e todas as escolas que o token enxerga e faz upsert
+    # como produtos `platform: "univercampus"` (platform_product_id = id do
+    # curso, ou "escola:<id>" — ver School). Itens que sumiram da API
+    # (arquivados ou de escola que o dono perdeu) viram `active: false`;
+    # voltam a `true` se reaparecerem.
     #
     # Sempre busca a lista completa (sem `atualizadoDesde`): só assim dá para
     # saber quais cursos sumiram.
@@ -26,6 +27,7 @@ module Integrations
       end
 
       def run
+        schools     = Array(@client.schools["escolas"])
         courses     = @client.courses
         synced      = 0
         failed      = 0
@@ -34,6 +36,15 @@ module Integrations
         seen_ids    = []
 
         with_rls(@workspace.id) do
+          schools.each do |school|
+            seen_ids << School.platform_product_id(school["id"])
+            ActiveRecord::Base.transaction(requires_new: true) { upsert_school(school) }
+          rescue StandardError => e
+            failed += 1
+            errors << { id: school["id"], titulo: school["nome"], error: "#{e.class}: #{e.message}" }
+            Rails.logger.warn("[UC-SYNC] escola=#{school['id']} falhou: #{e.message}")
+          end
+
           courses.each do |course|
             seen_ids << course["id"].to_s
             # Savepoint por curso: um erro de banco num curso não envenena a
@@ -52,17 +63,19 @@ module Integrations
                                   .update_all(active: false, last_synced_at: Time.current)
 
           @connection.update!(
+            schools:        schools,
             last_synced_at: Time.current,
-            last_error:     failed.zero? ? nil : "#{failed} curso(s) com erro: #{errors.first[:error]}".truncate(1000)
+            last_error:     failed.zero? ? nil : "#{failed} item(ns) com erro: #{errors.first[:error]}".truncate(1000)
           )
         end
 
         Rails.logger.info(
-          "[UC-SYNC] workspace=#{@workspace.id} fetched=#{courses.size} synced=#{synced} failed=#{failed} deactivated=#{deactivated}"
+          "[UC-SYNC] workspace=#{@workspace.id} schools=#{schools.size} fetched=#{courses.size} synced=#{synced} failed=#{failed} deactivated=#{deactivated}"
         )
 
         {
           ok:            failed.zero?,
+          schools:       schools.size,
           total_fetched: courses.size,
           synced:        synced,
           failed:        failed,
@@ -71,7 +84,7 @@ module Integrations
         }
       rescue Client::AuthError => e
         with_rls(@workspace.id) { @connection.mark_invalid!(e.message) }
-        { ok: false, stage: "auth", error: e.message, total_fetched: 0, synced: 0, failed: 0, deactivated: 0 }
+        { ok: false, stage: "auth", error: e.message, schools: 0, total_fetched: 0, synced: 0, failed: 0, deactivated: 0 }
       rescue Client::Error => e
         with_rls(@workspace.id) { @connection.record_error!(e.message) }
         raise
@@ -88,6 +101,7 @@ module Integrations
         metadata = product.metadata.is_a?(Hash) ? product.metadata.dup : {}
         previous = metadata["univercampus"].is_a?(Hash) ? metadata["univercampus"] : {}
         metadata["univercampus"] = previous.merge(
+          "tipo"          => "curso",
           "escola"        => course["escola"],
           "slug"          => course["slug"],
           "url"           => course["url"],
@@ -101,6 +115,36 @@ module Integrations
           description:    course["descricao"],
           image_url:      course["capaUrl"],
           price:          cents_to_price(course["precoCentavos"]),
+          currency:       "BRL",
+          active:         true,
+          metadata:       metadata,
+          last_synced_at: Time.current
+        )
+        product.save!
+      end
+
+      # A escola entra com o nome como título e a logo como imagem; o resumo IA
+      # dela (Ai::CourseBriefService) junta a descrição e os cursos.
+      def upsert_school(school)
+        product = @workspace.products.find_or_initialize_by(
+          platform:            PLATFORM,
+          platform_product_id: School.platform_product_id(school["id"])
+        )
+
+        metadata = product.metadata.is_a?(Hash) ? product.metadata.dup : {}
+        previous = metadata["univercampus"].is_a?(Hash) ? metadata["univercampus"] : {}
+        metadata["univercampus"] = previous.merge(
+          "tipo"   => School::TIPO,
+          "escola" => { "id" => school["id"], "slug" => school["slug"], "nome" => school["nome"] },
+          "slug"   => school["slug"],
+          "url"    => school["url"]
+        )
+
+        product.assign_attributes(
+          title:          school["nome"].presence || school["slug"],
+          handle:         school["slug"],
+          description:    school["descricao"],
+          image_url:      school["logoUrl"],
           currency:       "BRL",
           active:         true,
           metadata:       metadata,

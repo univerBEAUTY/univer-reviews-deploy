@@ -7,6 +7,9 @@ module Integrations
     # outra review recebida (rascunho, rejeitada, sem texto, apagada, movida
     # para outro produto) vira DELETE — idempotente do outro lado.
     #
+    # Review de escola (produto "escola:<id>", ver School) vai com escolaId em
+    # vez de cursoId; o resto do caminho é o mesmo.
+    #
     # Upserts vão agrupados por curso, em lotes de até 100. 404 de um curso
     # (escola que o dono perdeu) desativa o produto e descarta o push daquele
     # curso. Erros por item (`erros`) vão para last_error e o resto segue.
@@ -77,7 +80,8 @@ module Integrations
           end
         rescue Client::NotFound
           with_rls(@workspace.id) { product.update!(active: false) }
-          errors << "curso #{product.platform_product_id} não encontrado no UniverCampus — produto desativado"
+          what = School.school?(product) ? "escola #{School.school_id(product)}" : "curso #{product.platform_product_id}"
+          errors << "#{what} não encontrado no UniverCampus — produto desativado"
         end
         total
       end
@@ -92,7 +96,7 @@ module Integrations
       def payload(review)
         {
           idExterno:    review.id,
-          cursoId:      review.product.platform_product_id,
+          **target(review.product),
           nota:         review.rating,
           titulo:       review.title.presence,
           texto:        review.body.to_s.strip.first(MAX_TEXT),
@@ -102,6 +106,11 @@ module Integrations
           destaque:     review.is_featured == true,
           publicadaEm:  (review.approved_at || review.created_at).iso8601
         }
+      end
+
+      def target(product)
+        return { escolaId: School.school_id(product) } if School.school?(product)
+        { cursoId: product.platform_product_id }
       end
 
       # Os dois marcadores de review gerada por máquina (ver Review.real).

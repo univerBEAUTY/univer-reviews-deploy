@@ -89,6 +89,7 @@ const columns = [
         style={{ background: 'var(--ur-surface-soft)', border: '1px solid var(--ur-border)' }}
       >
         {info.getValue()}
+        {info.row.original.platform_product_id?.startsWith('escola:') ? ' · escola' : ''}
       </span>
     ),
   }),

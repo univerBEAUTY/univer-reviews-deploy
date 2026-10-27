@@ -6,8 +6,23 @@ RSpec.describe Integrations::Univercampus::CourseSyncer, type: :service do
   let(:client) do
     Integrations::Univercampus::Client.new(base_url: connection.base_url, token: connection.api_token, retry_interval: 0)
   end
-  let(:cursos_url) { "https://campus.example.com/api/univerreview/cursos" }
-  let(:json)       { { "Content-Type" => "application/json" } }
+  let(:cursos_url)  { "https://campus.example.com/api/univerreview/cursos" }
+  let(:escolas_url) { "https://campus.example.com/api/univerreview/escolas" }
+  let(:json)        { { "Content-Type" => "application/json" } }
+
+  before { stub_escolas([]) }
+
+  def escola(id, nome:, descricao: nil, logo: nil)
+    slug = nome.parameterize
+    { id: id, slug: slug, nome: nome, url: "https://campus.example.com/s/#{slug}", descricao: descricao, logoUrl: logo }
+  end
+
+  def stub_escolas(escolas)
+    stub_request(:get, escolas_url).to_return(
+      status: 200, headers: json,
+      body: { usuario: { id: "u1", nome: "Dona", email: "dona@example.com" }, escolas: escolas }.to_json
+    )
+  end
 
   def curso(id, titulo:, preco: 19_700)
     slug = titulo.parameterize
@@ -81,7 +96,7 @@ RSpec.describe Integrations::Univercampus::CourseSyncer, type: :service do
     result = run
     expect(result).to include(ok: false, synced: 1, failed: 1)
     expect(workspace.products.find_by(platform_product_id: "cur_ok")).to be_present
-    expect(connection.reload.last_error).to include("1 curso(s) com erro")
+    expect(connection.reload.last_error).to include("1 item(ns) com erro")
   end
 
   it "401 marca a conexão como inválida e devolve stage auth" do
@@ -97,5 +112,39 @@ RSpec.describe Integrations::Univercampus::CourseSyncer, type: :service do
 
     expect { run }.to raise_error(Integrations::Univercampus::Client::Error, /HTTP 503/)
     expect(connection.reload.last_error).to include("HTTP 503")
+  end
+
+  context "escolas" do
+    it "cria um produto avaliável por escola, com descrição, logo e tipo escola" do
+      stub_escolas([escola("esc_1", nome: "Escola Um", descricao: "Formação em mechas", logo: "https://cdn.example.com/logo.png")])
+      stub_cursos([curso("cur_1", titulo: "Mechas Perfeitas")])
+
+      result = run
+
+      expect(result).to include(ok: true, schools: 1, synced: 1)
+      school = workspace.products.find_by!(platform: "univercampus", platform_product_id: "escola:esc_1")
+      expect(school.title).to eq("Escola Um")
+      expect(school.description).to eq("Formação em mechas")
+      expect(school.image_url).to eq("https://cdn.example.com/logo.png")
+      expect(school.price).to be_nil
+      expect(school.metadata.dig("univercampus", "tipo")).to eq("escola")
+      expect(school.metadata.dig("univercampus", "escola", "id")).to eq("esc_1")
+      expect(Integrations::Univercampus::School.school?(school)).to be(true)
+
+      course = workspace.products.find_by!(platform_product_id: "cur_1")
+      expect(course.metadata.dig("univercampus", "tipo")).to eq("curso")
+      expect(Integrations::Univercampus::School.school?(course)).to be(false)
+      expect(connection.reload.schools.map { |s| s["id"] }).to eq(["esc_1"])
+    end
+
+    it "desativa a escola que o dono perdeu, sem desativar os cursos que voltaram" do
+      create(:product, :univercampus, workspace: workspace, platform_product_id: "escola:esc_old", title: "Velha")
+      stub_escolas([escola("esc_1", nome: "Escola Um")])
+      stub_cursos([curso("cur_1", titulo: "Mechas")])
+
+      expect(run).to include(deactivated: 1)
+      expect(workspace.products.find_by!(platform_product_id: "escola:esc_old").active).to be(false)
+      expect(workspace.products.find_by!(platform_product_id: "escola:esc_1").active).to be(true)
+    end
   end
 end

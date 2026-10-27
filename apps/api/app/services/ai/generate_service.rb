@@ -176,7 +176,15 @@ module Ai
         No markdown, no explanation, just the JSON.#{workspace_voice_context}
       PROMPT
 
-      if product
+      if product && ::Integrations::Univercampus::School.school?(product)
+        # Escola do UniverCampus: a review é sobre a escola como um todo, não
+        # sobre um curso específico.
+        prompt += "\n\nThe reviews are about an online school as a whole (teaching, support, community, " \
+                  "overall experience) — not about one specific course or product."
+        prompt += "\n\nSchool context:\n- Name: #{product.title}"
+        about = product_about(product)
+        prompt += "\n- About: #{about}" if about.present?
+      elsif product
         prompt += "\n\nProduct context:\n- Name: #{product.title}"
         prompt += "\n- Handle: #{product.handle}" if product.handle.present?
         about = product_about(product)

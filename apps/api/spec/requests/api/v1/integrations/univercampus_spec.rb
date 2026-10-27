@@ -49,10 +49,13 @@ RSpec.describe "Integração UniverCampus", type: :request do
       conn = create(:univercampus_connection, workspace: workspace, api_token: uc_token)
       create(:product, :univercampus, workspace: workspace,
              metadata: { "univercampus" => { "escola" => { "id" => "esc_1" } } })
+      create(:product, :univercampus, workspace: workspace, platform_product_id: "escola:esc_1",
+             metadata: { "univercampus" => { "tipo" => "escola", "escola" => { "id" => "esc_1" } } })
 
       get "/api/v1/integrations/univercampus", headers: headers
 
-      expect(body).to include("connected" => true, "status" => "active", "token_prefix" => conn.token_prefix, "course_count" => 1)
+      expect(body).to include("connected" => true, "status" => "active", "token_prefix" => conn.token_prefix,
+                              "course_count" => 1, "school_count" => 1)
       expect(body["schools"].first).to include("slug" => "escola-um", "course_count" => 1)
       expect(response.body).not_to include(uc_token)
     end
@@ -151,6 +154,7 @@ RSpec.describe "Integração UniverCampus", type: :request do
     let!(:connection) { create(:univercampus_connection, workspace: workspace, base_url: base_url, api_token: uc_token) }
 
     it "inline roda o sync e devolve a contagem" do
+      stub_escolas
       stub_request(:get, "#{base_url}/api/univerreview/cursos").to_return(status: 200, headers: json, body: {
         cursos: [{ id: "cur_1", escola: { id: "esc_1", slug: "escola-um", nome: "Escola Um" }, titulo: "Mechas",
                    slug: "mechas", descricao: "d", capaUrl: nil, precoCentavos: 9900, status: "published",
@@ -160,8 +164,9 @@ RSpec.describe "Integração UniverCampus", type: :request do
       expect { post "/api/v1/integrations/univercampus/sync?inline=true", headers: headers }
         .to have_enqueued_job(UnivercampusSyncJob).with(workspace.id, briefs_only: true)
 
-      expect(body).to include("ok" => true, "synced" => 1)
-      expect(workspace.products.where(platform: "univercampus").count).to eq(1)
+      expect(body).to include("ok" => true, "synced" => 1, "schools" => 1)
+      expect(workspace.products.where(platform: "univercampus").pluck(:platform_product_id))
+        .to contain_exactly("cur_1", "escola:esc_1")
     end
 
     it "sem inline enfileira o job" do
@@ -170,6 +175,7 @@ RSpec.describe "Integração UniverCampus", type: :request do
     end
 
     it "UniverCampus fora do ar devolve stage connection" do
+      stub_escolas
       stub_request(:get, "#{base_url}/api/univerreview/cursos").to_return(status: 500, body: "")
 
       post "/api/v1/integrations/univercampus/sync?inline=true", headers: headers
