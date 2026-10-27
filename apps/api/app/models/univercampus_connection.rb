@@ -45,6 +45,10 @@ class UnivercampusConnection < ApplicationRecord
 
   def active? = status == "active"
 
+  def client(**options)
+    ::Integrations::Univercampus::Client.new(base_url: base_url, token: api_token, **options)
+  end
+
   def record_verification!(owner:, schools:)
     update!(status: "active", verified_at: Time.current, owner_info: owner || {}, schools: Array(schools), last_error: nil)
   end

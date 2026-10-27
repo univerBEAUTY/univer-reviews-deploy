@@ -9,20 +9,9 @@ module Integrations
     class ConnectionError < Error; end
     class InvalidStoreUrlError < Error; end
 
-    # Strict allowlist for store URLs. Without this the adapter happily
-    # connects to any host the caller passes — cloud metadata endpoints
-    # (169.254.169.254), internal services (127.0.0.1:6379), link-local
-    # addresses, and any RFC1918 range. That's a textbook SSRF.
-    PRIVATE_IP_RANGES = [
-      IPAddr.new("10.0.0.0/8"),
-      IPAddr.new("127.0.0.0/8"),
-      IPAddr.new("169.254.0.0/16"), # AWS / GCP / Azure metadata
-      IPAddr.new("172.16.0.0/12"),
-      IPAddr.new("192.168.0.0/16"),
-      IPAddr.new("::1/128"),
-      IPAddr.new("fc00::/7"),       # Unique local addresses
-      IPAddr.new("fe80::/10"),      # Link-local
-    ].freeze
+    # SSRF guard lives in Integrations::UrlGuard (shared with the UniverCampus
+    # client). Constant kept for backwards compatibility.
+    PRIVATE_IP_RANGES = ::Integrations::UrlGuard::PRIVATE_IP_RANGES
 
     def initialize(store_url:, consumer_key:, consumer_secret:)
       @store_url       = validate_store_url!(store_url.to_s.chomp("/"))
@@ -33,55 +22,7 @@ module Integrations
     private
 
     def validate_store_url!(url)
-      uri = URI.parse(url)
-      unless %w[http https].include?(uri.scheme)
-        raise InvalidStoreUrlError, "store_url must use http or https"
-      end
-      # Block http:// outside of dev/test to prevent downgrade and
-      # MITM-able requests carrying basic-auth credentials.
-      if uri.scheme == "http" && !(Rails.env.development? || Rails.env.test?)
-        raise InvalidStoreUrlError, "store_url must use https"
-      end
-      host = uri.host.to_s.downcase
-      raise InvalidStoreUrlError, "store_url must include a host" if host.empty?
-
-      # DNS resolution + private-range check. We only block when DNS resolves
-      # AND any returned address is in a private range. If resolution fails or
-      # returns nothing (test fixtures, ephemeral hostnames), we let the request
-      # proceed and rely on Faraday's normal connection failure path. Blocking
-      # on resolution failure would break tests and any short-lived domain that
-      # propagates slowly.
-      addrs =
-        begin
-          Resolv.getaddresses(host)
-        rescue Resolv::ResolvError, StandardError
-          []
-        end
-
-      addrs.each do |addr|
-        begin
-          ip = IPAddr.new(addr)
-        rescue IPAddr::InvalidAddressError
-          next
-        end
-        if PRIVATE_IP_RANGES.any? { |range| range.include?(ip) }
-          raise InvalidStoreUrlError, "store_url resolves to a private/loopback address (#{addr})"
-        end
-      end
-
-      # Also reject when the host LITERALLY is a private IP — short-circuits the
-      # case where the attacker writes `http://127.0.0.1` directly (Resolv may or
-      # may not return it depending on platform/resolver config).
-      begin
-        literal_ip = IPAddr.new(host)
-        if PRIVATE_IP_RANGES.any? { |range| range.include?(literal_ip) }
-          raise InvalidStoreUrlError, "store_url points at a private/loopback address (#{host})"
-        end
-      rescue IPAddr::InvalidAddressError
-        # not a literal IP, that's fine
-      end
-
-      url
+      ::Integrations::UrlGuard.validate!(url, error_class: InvalidStoreUrlError, field: "store_url")
     end
 
     public
