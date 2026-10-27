@@ -170,6 +170,7 @@ Rails.application.routes.draw do
         resource :univercampus, controller: "univercampus", only: %i[show create update destroy] do
           post :test
           post :sync
+          post :push_all
         end
       end
 

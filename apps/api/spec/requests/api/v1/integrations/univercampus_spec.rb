@@ -179,6 +179,26 @@ RSpec.describe "Integração UniverCampus", type: :request do
     end
   end
 
+  describe "POST /integrations/univercampus/push_all" do
+    it "enfileira o reenvio de todas as aprovadas e devolve a contagem" do
+      create(:univercampus_connection, workspace: workspace)
+      course = create(:product, :univercampus, workspace: workspace)
+      allow(UnivercampusPushJob).to receive(:enqueue_debounced)
+      create_list(:review, 2, :approved, workspace: workspace, product: course)
+      create(:review, workspace: workspace, product: course)
+
+      expect { post "/api/v1/integrations/univercampus/push_all", headers: headers }
+        .to have_enqueued_job(UnivercampusPushJob).with(workspace.id, all_approved: true)
+      expect(body).to include("count" => 2)
+    end
+
+    it "sem conexão ativa devolve 400" do
+      create(:univercampus_connection, :invalid, workspace: workspace)
+      post "/api/v1/integrations/univercampus/push_all", headers: headers
+      expect(response).to have_http_status(:bad_request)
+    end
+  end
+
   describe "DELETE /integrations/univercampus" do
     it "remove a conexão" do
       create(:univercampus_connection, workspace: workspace)

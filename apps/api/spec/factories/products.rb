@@ -11,7 +11,7 @@ FactoryBot.define do
 
     trait :univercampus do
       platform { "univercampus" }
-      sequence(:platform_product_id) { |n| "cur_#{n}" }
+      sequence(:platform_product_id) { |n| "curso_fab_#{n}" }
     end
   end
 end

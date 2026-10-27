@@ -32,6 +32,14 @@ class Review < ApplicationRecord
 
   before_save :set_approved_at
 
+  # Campos que aparecem no UniverCampus (nota, texto, autor, destaque,
+  # status/aprovação) ou que trocam a review de curso.
+  UNIVERCAMPUS_PUSH_FIELDS = %w[
+    status body title rating is_featured author_name author_avatar_url approved_at product_id
+  ].freeze
+
+  after_commit :enqueue_univercampus_push, on: %i[create update destroy]
+
   scope :approved,     -> { where(status: "approved") }
   scope :pending,      -> { where(status: "pending") }
   scope :draft,        -> { where(status: "draft") }
@@ -109,6 +117,45 @@ class Review < ApplicationRecord
   end
 
   private
+
+  # Enfileira o push (com debounce por curso) quando a review é de um curso do
+  # UniverCampus e algo visível lá mudou. Nunca derruba o save.
+  def enqueue_univercampus_push
+    univercampus_push_targets.each do |target_product_id, kind|
+      UnivercampusPushJob.enqueue_debounced(
+        workspace_id: workspace_id,
+        product_id:   target_product_id,
+        upsert_ids:   kind == :upsert ? [id] : [],
+        delete_ids:   kind == :delete ? [id] : []
+      )
+    end
+  rescue StandardError => e
+    Rails.logger.error("[UC-PUSH] review=#{id} não enfileirou push: #{e.class}: #{e.message}")
+  end
+
+  # { product_id => :upsert | :delete }, só para produtos do UniverCampus.
+  def univercampus_push_targets
+    candidates =
+      if destroyed?
+        { product_id => :delete }
+      else
+        return {} unless (saved_changes.keys & UNIVERCAMPUS_PUSH_FIELDS).any?
+        moved_from = saved_change_to_product_id? ? product_id_before_last_save : nil
+        { moved_from => :delete, product_id => :upsert }
+      end
+    candidates = candidates.reject { |pid, _| pid.nil? }
+    return {} if candidates.empty?
+
+    # after_commit roda depois do COMMIT da request, quando o SET LOCAL do
+    # tenant já não vale — reabre o escopo RLS para ler products.
+    ids = self.class.transaction do
+      self.class.connection.execute(
+        self.class.sanitize_sql(["SET LOCAL app.workspace_id = ?", workspace_id.to_s])
+      )
+      Product.where(id: candidates.keys, platform: ::Integrations::Univercampus::CourseSyncer::PLATFORM).pluck(:id)
+    end
+    candidates.slice(*ids)
+  end
 
   def set_approved_at
     if status_changed?(to: "approved") && approved_at.nil?

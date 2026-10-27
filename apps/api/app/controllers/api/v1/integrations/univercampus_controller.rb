@@ -119,6 +119,22 @@ module Api
           render json: { ok: false, stage: "connection", error: e.message, synced: 0, failed: 0 }
         end
 
+        # POST /api/v1/integrations/univercampus/push_all — reenvia todas as
+        # aprovadas dos cursos ativos (o push normal é automático, por review).
+        def push_all
+          require_write!
+
+          connection = current_workspace.univercampus_connection
+          unless connection&.active?
+            render json: { error: "not_configured", message: "Conecte o UniverCampus com um token válido antes de reenviar." },
+                   status: :bad_request
+            return
+          end
+
+          UnivercampusPushJob.perform_later(current_workspace.id, all_approved: true)
+          render json: { message: "Reenvio de avaliações enfileirado", count: published_reviews.count }
+        end
+
         private
 
         def conn_params
