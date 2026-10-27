@@ -34,6 +34,9 @@ import type {
   AiSummaryTopic,
   AiSummaryProductRow,
   WcSyncResult,
+  UnivercampusConfig,
+  UnivercampusSyncResult,
+  UnivercampusTestResult,
   SuperAdminWorkspaceRow,
   SuperAdminWorkspaceDetail,
   SuperAdminWorkspaceListMeta,
@@ -750,6 +753,40 @@ class ApiClient {
         ),
       disconnect: (token: string) =>
         this.request('/integrations/woocommerce', { method: 'DELETE' }, token),
+    },
+    univercampus: {
+      get: (token: string) =>
+        this.request<UnivercampusConfig>('/integrations/univercampus', {}, token),
+      // api_token vazio/ausente mantém o token já salvo (troca só a URL).
+      save: (data: { base_url?: string; api_token?: string }, token: string) =>
+        this.request<UnivercampusConfig & { probe?: { success: boolean; error?: string } }>(
+          '/integrations/univercampus',
+          { method: 'POST', body: JSON.stringify(data) },
+          token
+        ),
+      test: (data: { base_url?: string; api_token?: string }, token: string) =>
+        this.request<UnivercampusTestResult>(
+          '/integrations/univercampus/test',
+          { method: 'POST', body: JSON.stringify(data) },
+          token
+        ),
+      sync: (token: string, opts?: { inline?: boolean }) =>
+        this.request<UnivercampusSyncResult | { message: string }>(
+          '/integrations/univercampus/sync',
+          {
+            method: 'POST',
+            params: opts?.inline ? { inline: 'true' } : undefined,
+          },
+          token
+        ),
+      pushAll: (token: string) =>
+        this.request<{ message: string; count: number }>(
+          '/integrations/univercampus/push_all',
+          { method: 'POST' },
+          token
+        ),
+      disconnect: (token: string) =>
+        this.request('/integrations/univercampus', { method: 'DELETE' }, token),
     },
   }
 

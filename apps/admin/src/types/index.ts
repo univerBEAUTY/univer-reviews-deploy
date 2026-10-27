@@ -470,6 +470,58 @@ export interface WcSyncResult {
   error?: string
 }
 
+// ─── UniverCampus ─────────────────────────────────────────────────────────────
+
+export interface UnivercampusSchool {
+  id: string
+  slug: string
+  nome: string
+  url: string
+  /** Cursos ativos sincronizados desta escola (só no GET da conexão). */
+  course_count?: number
+}
+
+export interface UnivercampusOwner {
+  id?: string
+  nome?: string
+  email?: string
+}
+
+/** GET /integrations/univercampus. O token nunca vem na resposta. */
+export interface UnivercampusConfig {
+  connected: boolean
+  base_url: string
+  status?: 'active' | 'invalid'
+  token_prefix?: string | null
+  schools?: UnivercampusSchool[]
+  owner?: UnivercampusOwner
+  verified_at?: string | null
+  last_synced_at?: string | null
+  last_pushed_at?: string | null
+  last_error?: string | null
+  course_count?: number
+  review_count?: number
+}
+
+export interface UnivercampusTestResult {
+  success: boolean
+  message: string
+  owner?: UnivercampusOwner
+  schools?: UnivercampusSchool[]
+}
+
+/** POST /integrations/univercampus/sync?inline=true */
+export interface UnivercampusSyncResult {
+  ok: boolean
+  total_fetched?: number
+  synced: number
+  failed: number
+  deactivated?: number
+  errors?: Array<{ id?: string; titulo?: string | null; error: string }>
+  stage?: 'auth' | 'connection'
+  error?: string
+}
+
 // ─── Catalog Health ───────────────────────────────────────────────────────────
 
 export interface CatalogHealth {

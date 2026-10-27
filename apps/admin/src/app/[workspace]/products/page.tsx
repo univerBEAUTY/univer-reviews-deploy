@@ -121,11 +121,15 @@ export default function ProductsPage() {
   const queryClient = useQueryClient()
   const [page, setPage] = useState(1)
   const [search, setSearch] = useState('')
+  const [platform, setPlatform] = useState('')
 
   const { data, isLoading } = useQuery({
-    queryKey: ['products', workspace, page, search],
+    queryKey: ['products', workspace, page, search, platform],
     queryFn: () =>
-      api.products.list({ page, per_page: 20, q: search || undefined }, getToken()),
+      api.products.list(
+        { page, per_page: 20, q: search || undefined, platform: platform || undefined },
+        getToken()
+      ),
     enabled: isAuthenticated,
   })
 
@@ -247,11 +251,29 @@ export default function ProductsPage() {
 
       <Toolbar
         left={
-          <SearchInput
-            value={search}
-            onChange={(v) => { setSearch(v); setPage(1) }}
-            placeholder="Buscar produtos…"
-          />
+          <>
+            <SearchInput
+              value={search}
+              onChange={(v) => { setSearch(v); setPage(1) }}
+              placeholder="Buscar produtos…"
+            />
+            <select
+              aria-label="Filtrar por plataforma"
+              value={platform}
+              onChange={(e) => { setPlatform(e.target.value); setPage(1) }}
+              className="px-3 py-1.5 rounded-lg text-sm outline-none"
+              style={{
+                background: 'var(--ur-bg-soft)',
+                border: '1px solid var(--ur-border)',
+                color: 'var(--ur-text)',
+              }}
+            >
+              <option value="">Todas as plataformas</option>
+              <option value="woocommerce">WooCommerce</option>
+              <option value="univercampus">UniverCampus</option>
+              <option value="generic">Manual</option>
+            </select>
+          </>
         }
         right={
           <span className="ur-meta">

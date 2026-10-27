@@ -1,6 +1,6 @@
 'use client'
 
-import { Plug } from 'lucide-react'
+import { GraduationCap, Plug } from 'lucide-react'
 import { useQuery } from '@tanstack/react-query'
 import { useParams } from 'next/navigation'
 import { PageHeader } from '@/components/godmode/PageHeader'
@@ -92,6 +92,10 @@ const wooLogo = (
   </svg>
 )
 
+const univercampusLogo = (
+  <GraduationCap className="w-5 h-5" style={{ color: 'var(--ur-accent)' }} aria-hidden="true" />
+)
+
 export default function IntegrationsPage() {
   const params = useParams()
   const workspace = params?.workspace as string
@@ -103,6 +107,22 @@ export default function IntegrationsPage() {
     enabled: isAuthenticated,
     retry: false,
   })
+
+  const { data: ucConfig } = useQuery({
+    queryKey: ['univercampus-config', workspace],
+    queryFn: () => api.integrations.univercampus.get(getToken()),
+    enabled: isAuthenticated,
+    retry: false,
+  })
+
+  const ucConnected = Boolean(ucConfig?.connected) && ucConfig?.status === 'active'
+  const ucStats = ucConfig?.connected
+    ? [
+        { label: 'Cursos', value: (ucConfig.course_count ?? 0).toLocaleString('pt-BR') },
+        { label: 'Avaliações publicadas', value: (ucConfig.review_count ?? 0).toLocaleString('pt-BR') },
+        ...(ucConfig.status === 'invalid' ? [{ label: 'Atenção', value: 'Token inválido' }] : []),
+      ]
+    : undefined
 
   const wooConnected = Boolean(wooConfig?.connected)
   const wooStats = wooConnected
@@ -142,6 +162,15 @@ export default function IntegrationsPage() {
               logo={wooLogo}
               href="integrations/woocommerce"
               stats={wooStats}
+            />
+
+            <IntegrationCard
+              name="UniverCampus"
+              description="Traga os cursos das suas escolas como produtos, gere avaliações com o contexto real de cada curso e publique estrelas e depoimentos na página de venda."
+              status={ucConnected ? 'connected' : 'not_connected'}
+              logo={univercampusLogo}
+              href="integrations/univercampus"
+              stats={ucStats}
             />
 
             {staticIntegrations.map((integration) => (
