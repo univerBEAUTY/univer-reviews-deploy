@@ -135,6 +135,20 @@ RSpec.describe "Row-Level Security · cross-tenant isolation", type: :model do
     end
   end
 
+  describe "UnivercampusConnection" do
+    let!(:conn_a) { create(:univercampus_connection, workspace: workspace_a) }
+    let!(:conn_b) { create(:univercampus_connection, workspace: workspace_b) }
+
+    it "is isolated per workspace" do
+      with_workspace_rls(workspace_a.id) do
+        expect(UnivercampusConnection.pluck(:id)).to eq([conn_a.id])
+      end
+      with_workspace_rls(workspace_b.id) do
+        expect(UnivercampusConnection.pluck(:id)).to eq([conn_b.id])
+      end
+    end
+  end
+
   describe "foreign workspace context" do
     # FORCE ROW LEVEL SECURITY means even the table owner can't bypass
     # the policy. We can't reliably test "unset" because the GUC may

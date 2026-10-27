@@ -22,6 +22,7 @@ class Workspace < ApplicationRecord
   has_many :ai_summary_topics,  dependent: :destroy
   has_many :platform_events,    dependent: :destroy
   has_one  :subscription,       dependent: :destroy
+  has_one  :univercampus_connection, dependent: :destroy
 
   # T1.3 collapsed the legacy free/starter/pro/enterprise tuple into the
   # current paid-only ladder. See the rename migration header for why

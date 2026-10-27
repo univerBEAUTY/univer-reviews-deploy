@@ -19,6 +19,8 @@ The Rails app now fails boot in production when any of these are missing. Set th
 | `UNIVERCART_API_KEY` | Bearer `sk_live_<…>` for `POST /v1/tokens/:jti/redeem`. Lives on Rails only. | Rails redeem proxy returns 503; no buyer can log in via the magic-link. |
 | `UNIVERCART_API_URL` | Optional override; defaults to `https://api.univercart.com`. | Uses default. |
 | `UNIVERCART_PARTNER_SLUG` | Our `aud` claim in inbound JWTs (`univerreviews`). | Defaults to `univerreviews`. |
+| `ACTIVE_RECORD_ENCRYPTION_PRIMARY_KEY`, `ACTIVE_RECORD_ENCRYPTION_DETERMINISTIC_KEY`, `ACTIVE_RECORD_ENCRYPTION_KEY_DERIVATION_SALT` | Active Record Encryption — cifra `univercampus_connections.api_token`. Gere com `bin/rails db:encryption:init`; defina no `api` **e** no `sidekiq`. Não troque depois de conectar: tokens salvos ficam ilegíveis. | App sobe normal; só salvar uma conexão UniverCampus é recusado (422 com mensagem pedindo as chaves). |
+| `UNIVERCAMPUS_API_URL` | URL do UniverCampus pré-preenchida no admin | Usa `https://univercampus.cloud` |
 | `CONNECT_PROXY_SECRET` | Shared secret between Next `/connect/setup` and Rails `/api/v1/connect/redeem` so a stray visitor can't trigger redemptions. Generate with `openssl rand -hex 32`. | Endpoint returns 503. |
 | `FRONTEND_URL` | Allowlist for Stripe redirects | Falls back to `https://dash.univerreviews.com` |
 | `STRIPE_SECRET_KEY` | Stripe API client | Stripe calls fail with auth errors |
@@ -46,6 +48,11 @@ Two new migrations applied this sweep:
 
 T1.2 payment webhook migration:
 - `20260528173200_create_payment_events.rb` — payment_events idempotency table (no RLS; pre-provisioning)
+
+Integração UniverCampus (2026-10-27) — todas aditivas, aplicadas pelo `rails db:prepare` do boot do `api`:
+- `20261027000001_create_univercampus_connections.rb` — conexão por workspace (token cifrado, RLS FORCE)
+- `20261027000002_add_description_to_products.rb` — `products.description` (text, nullable)
+- `20261027000003_allow_course_brief_ai_jobs.rb` — `ai_jobs_type_check` passa a aceitar `course_brief`
 
 ## DB role hardening (HIGH priority, post-MVP)
 

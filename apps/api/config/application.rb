@@ -17,6 +17,17 @@ module UniverseReviewsApi
     config.active_job.queue_adapter = :sidekiq
     config.active_record.schema_format = :sql
 
+    # Active Record Encryption — chaves vêm do ambiente (gere com
+    # `bin/rails db:encryption:init`). Só UnivercampusConnection usa
+    # (`encrypts :api_token`). Sem as chaves o app sobe normalmente e apenas
+    # salvar uma conexão UniverCampus é recusado com mensagem clara (ver
+    # UnivercampusConnection::ENCRYPTION_MISSING). Test/development definem
+    # valores próprios nos arquivos de ambiente.
+    %w[primary_key deterministic_key key_derivation_salt].each do |name|
+      value = ENV["ACTIVE_RECORD_ENCRYPTION_#{name.upcase}"].to_s
+      config.active_record.encryption.public_send(:"#{name}=", value) unless value.empty?
+    end
+
     # Autoload paths
     config.autoload_paths += %W[
       #{root}/app/errors

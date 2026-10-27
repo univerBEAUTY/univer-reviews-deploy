@@ -9,4 +9,9 @@ Rails.application.configure do
   config.active_record.maintain_test_schema = true
   config.active_record.migration_error = :page_load
   config.log_level = :warn
+
+  # Chaves fixas de teste para Active Record Encryption (não são segredo).
+  config.active_record.encryption.primary_key         = "test" * 8
+  config.active_record.encryption.deterministic_key   = "tdet" * 8
+  config.active_record.encryption.key_derivation_salt = "salt" * 8
 end
