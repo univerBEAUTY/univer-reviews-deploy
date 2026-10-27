@@ -8,6 +8,8 @@ module Ai
     # Larger batches truncate mid-array and crash parse_json_response.
     CHUNK_SIZE  = 8
     MAX_RETRIES = 1
+    # Limite do contexto "About" (resumo IA do curso ou descrição do produto).
+    ABOUT_MAX_CHARS = 600
 
     # Generates `count` review variants. When count > CHUNK_SIZE, the
     # request is split into multiple Claude calls and the results are
@@ -177,9 +179,23 @@ module Ai
       if product
         prompt += "\n\nProduct context:\n- Name: #{product.title}"
         prompt += "\n- Handle: #{product.handle}" if product.handle.present?
+        about = product_about(product)
+        prompt += "\n- About: #{about}" if about.present?
       end
 
       prompt
+    end
+
+    # Contexto além do título: o resumo IA do curso (UniverCampus,
+    # `metadata.ai_brief`) quando existe; senão a descrição sem HTML, cortada.
+    # Produto sem nenhum dos dois → prompt igual ao de antes.
+    def product_about(product)
+      metadata = product.metadata.is_a?(Hash) ? product.metadata : {}
+      brief = metadata["ai_brief"].to_s.strip
+      return brief if brief.present?
+
+      text = product.description.to_s.gsub(/<[^>]+>/, " ").gsub(/\s+/, " ").strip
+      text.presence&.truncate(ABOUT_MAX_CHARS, separator: " ", omission: "…")
     end
 
     def build_user_prompt(template, count)
