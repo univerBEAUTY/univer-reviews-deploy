@@ -34,7 +34,11 @@ services:
 
   # ─── MinIO (Object Storage) ─────────────────────────────────────────────────
   minio:
-    image: quay.io/minio/minio:latest
+    # A MinIO parou de publicar imagens: minio/* no Docker Hub não existe mais e
+    # quay.io/minio/* responde 401. pgsty/minio é o build comunitário com o mesmo
+    # layout da oficial (entrypoint, root, /data, curl e mc embutidos), então o
+    # volume existente segue igual. Versão fixa: `latest` já derrubou o deploy.
+    image: pgsty/minio:RELEASE.2026-08-04T00-00-00Z
     restart: unless-stopped
     command: server /data --console-address ":9001"
     environment:
@@ -53,7 +57,8 @@ services:
 
   # ─── MinIO Init (create bucket) ─────────────────────────────────────────────
   minio-init:
-    image: quay.io/minio/mc:latest
+    # Mesma imagem do servidor (já traz o mc): uma imagem a menos para baixar.
+    image: pgsty/minio:RELEASE.2026-08-04T00-00-00Z
     restart: "no"
     depends_on:
       minio:
