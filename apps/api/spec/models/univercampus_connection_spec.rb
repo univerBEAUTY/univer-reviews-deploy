@@ -24,6 +24,12 @@ RSpec.describe UnivercampusConnection, type: :model do
     expect(conn.errors[:api_token]).to be_present
   end
 
+  it "rejeita base_url que não é URL http(s) (inclusive com lixo depois de uma quebra de linha)" do
+    expect(build(:univercampus_connection, base_url: "ftp://campus.example.com")).not_to be_valid
+    expect(build(:univercampus_connection, base_url: "https://campus.example.com\njavascript:alert(1) x")).not_to be_valid
+    expect(build(:univercampus_connection, base_url: "http://localhost:3000")).to be_valid
+  end
+
   it "permite só uma conexão por workspace" do
     create(:univercampus_connection, workspace: workspace)
     expect(build(:univercampus_connection, workspace: workspace)).not_to be_valid

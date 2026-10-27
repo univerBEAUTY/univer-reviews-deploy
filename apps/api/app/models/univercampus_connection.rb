@@ -18,7 +18,7 @@ class UnivercampusConnection < ApplicationRecord
   encrypts :api_token
 
   validates :workspace_id, uniqueness: true
-  validates :base_url, presence: true, format: { with: %r{\Ahttps?://[^\s/]+}i, message: "deve começar com http:// ou https://" }
+  validates :base_url, presence: true, format: { with: %r{\Ahttps?://[^\s/]+(/\S*)?\z}i, message: "deve ser uma URL http:// ou https://" }
   validates :api_token, presence: true, format: { with: TOKEN_FORMAT, message: "deve ser o token ucrev_… gerado no UniverCampus" }
   validates :status, inclusion: { in: STATUSES }
   validate  :encryption_must_be_configured
