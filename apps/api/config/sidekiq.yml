@@ -14,6 +14,10 @@
     cron: "0 6 * * *"
     class: WooCommerceSyncAllJob
     queue: imports
+  sync_univercampus_courses:
+    cron: "30 6 * * *"
+    class: UnivercampusSyncAllJob
+    queue: imports
   dispatch_due_campaign_sends:
     cron: "* * * * *"
     class: DispatchDueCampaignSendsJob

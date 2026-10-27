@@ -8,5 +8,10 @@ FactoryBot.define do
     price    { Faker::Commerce.price(range: 10..500) }
     currency { "BRL" }
     active   { true }
+
+    trait :univercampus do
+      platform { "univercampus" }
+      sequence(:platform_product_id) { |n| "cur_#{n}" }
+    end
   end
 end
