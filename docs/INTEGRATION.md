@@ -219,7 +219,51 @@ Coming: workspace-defined endpoints we POST to on `review.approved`,
 
 ---
 
-## 9. Support
+## 9. UniverCampus
+
+Conecta um workspace às escolas de um dono no UniverCampus. Desenho completo
+em `docs/superpowers/specs/2026-10-27-integracao-univercampus-design.md`.
+
+**Conectar** — no UniverCampus, o dono abre Configurações → UniverReview e gera
+um token `ucrev_…` (vale para todas as escolas em que ele é dono). Em
+`/<slug>/integrations/univercampus`: URL (pré-preenchida com
+`UNIVERCAMPUS_API_URL`, editável) + token → **Testar conexão** (lista as
+escolas) → **Salvar e sincronizar**. O token fica cifrado (Active Record
+Encryption) e nunca volta em resposta da API.
+
+**O que acontece depois**
+
+- *Cursos → produtos*: `UnivercampusSyncJob` (ao salvar, no botão
+  "Sincronizar agora" e no cron diário 06:30 `UnivercampusSyncAllJob`) faz
+  upsert de cada curso como produto `platform: "univercampus"` (título,
+  descrição, capa, preço, `metadata.univercampus`). Curso que some da API vira
+  `active: false`.
+- *Resumo IA*: para cada curso cujo `digest` de conteúdo mudou, 1 chamada Haiku
+  com a capa + texto do curso gera `metadata.ai_brief` (≤ 600 caracteres).
+  Conta no limite mensal de IA (`AiJob` tipo `course_brief`). A geração de
+  reviews usa esse resumo como contexto (ou a descrição, na falta dele).
+- *Reviews → UniverCampus*: criar/editar/aprovar/apagar uma review de um curso
+  enfileira o envio (mudanças do mesmo curso são juntadas por 10 s). Aprovadas
+  com texto são publicadas (`PUT /api/univerreview/avaliacoes`, lotes de 100,
+  com `sintetica` e `destaque`); as demais são removidas. **Reenviar
+  avaliações** manda todas as aprovadas de novo.
+
+**Erros** — token recusado (401/403) marca a conexão como inválida (aviso no
+admin, sem retry). 404 de curso desativa o produto. 429/5xx/timeout: retry do
+Sidekiq e `last_error` visível na tela.
+
+**Endpoints (admin)** — `GET|POST|PATCH|DELETE /api/v1/integrations/univercampus`,
+`POST …/test`, `POST …/sync[?inline=true]`, `POST …/push_all`. Escrita exige
+permissão de escrita.
+
+**Local** — o UniverCampus em `http://localhost:3000` é aceito em
+development/test (em produção hosts privados são bloqueados por SSRF). Em
+development as chaves de criptografia têm fallback; em produção defina
+`ACTIVE_RECORD_ENCRYPTION_*` (ver `SECURITY_DEPLOY_CHECKLIST.md`).
+
+---
+
+## 10. Support
 
 - Suporte: suporte@univerreviews.com
 - DPO / Privacidade: privacidade@univerreviews.com
