@@ -14,6 +14,10 @@ module UniverseReviewsApi
     config.api_only = true
     config.time_zone = "UTC"
     config.i18n.default_locale = :"pt-BR"
+    # Sem isto, pt-BR só "existe" onde o Faker (dev/test) carrega os locales
+    # dele. Em produção o ActiveJob grava locale "pt-BR" no job e o Sidekiq
+    # recusava todos com I18n::InvalidLocale.
+    config.i18n.available_locales = [:"pt-BR", :en]
     config.active_job.queue_adapter = :sidekiq
     config.active_record.schema_format = :sql
 
