@@ -166,6 +166,11 @@ Rails.application.routes.draw do
           post :sync_products
           post :sync_reviews
         end
+
+        resource :univercampus, controller: "univercampus", only: %i[show create update destroy] do
+          post :test
+          post :sync
+        end
       end
 
       # Billing
