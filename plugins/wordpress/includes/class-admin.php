@@ -107,7 +107,7 @@ class Univer_Admin {
 
     public function sanitize_layout( string $layout ): string {
         // Keep this list in sync with apps/widget/src/widget.ts → type Layout.
-        $valid = [ 'default', 'compact', 'grid', 'carousel' ];
+        $valid = [ 'default', 'compact', 'grid', 'carousel', 'showcase' ];
         return in_array( $layout, $valid, true ) ? $layout : 'default';
     }
 
@@ -162,6 +162,10 @@ class Univer_Admin {
             'carousel' => [
                 'label' => __( 'Carrossel (scroll horizontal)', 'univer-reviews' ),
                 'hint'  => __( 'Cards rolam horizontalmente — bom para destacar reviews em landing pages.', 'univer-reviews' ),
+            ],
+            'showcase' => [
+                'label' => __( 'Vitrine (estilo loja)', 'univer-reviews' ),
+                'hint'  => __( 'Resumo em card com % que recomenda, fotos e vídeos dos clientes, filtros por nota e botão "Carregar mais".', 'univer-reviews' ),
             ],
         ];
     }

@@ -15,7 +15,7 @@ const here = dirname(fileURLToPath(import.meta.url))
 const schemaPath = resolve(here, '../../../packages/shared/widget-config.schema.json')
 
 interface WidgetConfig {
-  layout: 'default' | 'compact' | 'grid' | 'carousel'
+  layout: 'default' | 'compact' | 'grid' | 'carousel' | 'showcase'
   locale: 'pt-BR' | 'en-US' | 'es-AR'
   theme_color: string
   star_color: string

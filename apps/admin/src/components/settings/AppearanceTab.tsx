@@ -36,6 +36,7 @@ const LAYOUTS: { id: WidgetLayout; label: string; sub: string }[] = [
   { id: 'compact',  label: 'Compacto',  sub: 'Lista densa, sem borda entre cards.' },
   { id: 'grid',     label: 'Grade',     sub: 'Cards em grid responsivo.' },
   { id: 'carousel', label: 'Carrossel', sub: 'Scroll horizontal com snap.' },
+  { id: 'showcase', label: 'Vitrine',   sub: 'Resumo em card, fotos dos clientes, filtros e "Carregar mais".' },
 ]
 
 const LOCALES: { id: WidgetLocale; label: string }[] = [
@@ -189,7 +190,7 @@ export function AppearanceTab({ workspace }: { workspace: Workspace }) {
       <div className="space-y-6">
         {/* Layout */}
         <Section label="Layout" hint="Como os reviews são organizados na página do produto.">
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+          <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
             {LAYOUTS.map((opt) => (
               <button
                 key={opt.id}
@@ -720,6 +721,23 @@ function LayoutThumb({ id }: { id: WidgetLayout }) {
         <div className="flex-1 border-b" style={{ borderColor: 'var(--ur-border-soft)' }} />
         <div className="flex-1 border-b" style={{ borderColor: 'var(--ur-border-soft)' }} />
         <div className="flex-1" />
+      </div>
+    )
+  }
+  if (id === 'showcase') {
+    return (
+      <div className="w-full h-14 flex flex-col gap-1 p-1.5 rounded" style={{ background: 'var(--ur-bg)' }}>
+        <div className="flex gap-1 h-5 p-0.5" style={cardBase}>
+          <div className="w-2/5 rounded-sm" style={{ background: 'var(--ur-border-soft)' }} />
+          <div className="flex-1 rounded-sm" style={{ background: 'var(--ur-border-soft)' }} />
+        </div>
+        <div className="flex gap-0.5">
+          <div className="h-1.5 w-3 rounded-full" style={{ background: 'var(--ur-text)' }} />
+          <div className="h-1.5 w-3 rounded-full" style={cardBase} />
+          <div className="h-1.5 w-3 rounded-full" style={cardBase} />
+        </div>
+        <div className="flex-1" style={cardBase} />
+        <div className="flex-1" style={cardBase} />
       </div>
     )
   }

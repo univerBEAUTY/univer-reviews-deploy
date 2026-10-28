@@ -32,7 +32,7 @@ class Workspace < ApplicationRecord
   # 'suspended' (which implies founder-initiated moderation / abuse).
   # See migration 20260528192242 for the DB-level CHECK and rationale.
   STATUSES = %w[active suspended trial cancelled].freeze
-  WIDGET_LAYOUTS = %w[default compact grid carousel].freeze
+  WIDGET_LAYOUTS = %w[default compact grid carousel showcase].freeze
   WIDGET_STAR_SHAPES = %w[star heart flame thumb diamond].freeze
   WIDGET_LOCALES = %w[pt-BR en-US es-AR].freeze
 

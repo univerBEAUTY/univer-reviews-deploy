@@ -19,7 +19,7 @@
   "properties": {
     "layout": {
       "type": "string",
-      "enum": ["default", "compact", "grid", "carousel"]
+      "enum": ["default", "compact", "grid", "carousel", "showcase"]
     },
     "locale": {
       "type": "string",

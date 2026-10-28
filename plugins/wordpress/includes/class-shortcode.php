@@ -735,7 +735,7 @@ class Univer_Shortcode {
     }
 
     private function sanitize_layout( string $layout ): string {
-        $valid = [ 'default', 'compact', 'grid', 'carousel', 'side-summary' ];
+        $valid = [ 'default', 'compact', 'grid', 'carousel', 'side-summary', 'showcase' ];
         return in_array( $layout, $valid, true ) ? $layout : 'default';
     }
 }

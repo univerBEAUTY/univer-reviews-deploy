@@ -175,7 +175,7 @@ export interface WorkspaceBranding {
  * over the workspace-level values stored here (precedence:
  * attribute > workspace setting > built-in default).
  */
-export type WidgetLayout = 'default' | 'compact' | 'grid' | 'carousel'
+export type WidgetLayout = 'default' | 'compact' | 'grid' | 'carousel' | 'showcase'
 export type WidgetLocale = 'pt-BR' | 'en-US' | 'es-AR'
 export type WidgetStarShape = 'star' | 'heart' | 'flame' | 'thumb' | 'diamond'
 

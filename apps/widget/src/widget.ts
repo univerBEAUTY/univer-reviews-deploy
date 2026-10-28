@@ -32,6 +32,9 @@ interface Review {
   created_at: string
   media: ReviewMedia[]
   replies: Reply[]
+  /** Escrita por IA (gerada no painel ou importada como exemplo). O layout
+   *  `showcase` mostra o rótulo de exemplo ao lado do nome. */
+  is_synthetic?: boolean
 }
 
 interface ReviewSummary {
@@ -39,6 +42,9 @@ interface ReviewSummary {
   total_reviews: number
   avg_rating: number
   rating_distribution: { rating: number; count: number; percentage: number }[]
+  verified_count?: number
+  media_count?: number
+  recommend_percentage?: number
 }
 
 interface PublicQuestion {
@@ -51,10 +57,10 @@ interface PublicQuestion {
   created_at: string
 }
 
-type Layout = 'default' | 'compact' | 'grid' | 'carousel'
+type Layout = 'default' | 'compact' | 'grid' | 'carousel' | 'showcase'
 type SortMode = 'created_at' | 'helpful' | 'rating' | 'oldest'
 type RatingFilter = 0 | 1 | 2 | 3 | 4 | 5
-type MediaFilter = 'all' | 'with_photo' | 'with_video' | 'verified'
+type MediaFilter = 'all' | 'with_photo' | 'with_video' | 'with_media' | 'verified'
 type ActiveTab = 'reviews' | 'qa'
 type StarShape = 'star' | 'heart' | 'flame' | 'thumb' | 'diamond'
 
@@ -144,6 +150,16 @@ const i18n: Record<string, Record<string, string>> = {
     just_now: 'agora',
     years_ago: 'anos atrás',
     year_ago: 'ano atrás',
+    sc_verified: 'verificadas',
+    sc_recommend: 'recomendam este produto',
+    sc_write: 'Escrever avaliação',
+    sc_media_title: 'Fotos e vídeos de clientes',
+    sc_media_link: 'Ver avaliações com mídia',
+    sc_with_media: 'Com foto ou vídeo',
+    sc_sort: 'Ordenar:',
+    sc_load_more: 'Carregar mais avaliações',
+    sc_all_verified: 'Exibindo avaliações de compras verificadas',
+    ai_example: 'Avaliação de exemplo · gerada por IA',
   },
   'en-US': {
     reviews: 'Reviews',
@@ -197,6 +213,16 @@ const i18n: Record<string, Record<string, string>> = {
     just_now: 'just now',
     years_ago: 'years ago',
     year_ago: 'year ago',
+    sc_verified: 'verified',
+    sc_recommend: 'recommend this product',
+    sc_write: 'Write a review',
+    sc_media_title: 'Customer photos & videos',
+    sc_media_link: 'See reviews with media',
+    sc_with_media: 'With photo or video',
+    sc_sort: 'Sort:',
+    sc_load_more: 'Load more reviews',
+    sc_all_verified: 'Showing reviews from verified purchases',
+    ai_example: 'Sample review · AI-generated',
   },
 }
 
@@ -726,6 +752,81 @@ button { font-family: inherit; cursor: pointer; }
 
 /* ── Responsive ───────────────────────────────────────────────────────────── */
 /* Tablet: 2 columns */
+/* ── Showcase layout (vitrine de e-commerce) ─────────────────────────────── */
+.ur-sc-summary {
+  border: 1px solid var(--ur-border); border-radius: 12px;
+  padding: 20px; margin-bottom: 20px; background: var(--ur-surface);
+}
+.ur-sc-top { display: grid; grid-template-columns: minmax(200px, 280px) 1fr; gap: 24px; align-items: start; }
+.ur-sc-score { display: flex; align-items: center; gap: 10px; }
+.ur-sc-avg { font-size: 40px; font-weight: 800; line-height: 1; letter-spacing: -0.02em; font-variant-numeric: tabular-nums; }
+.ur-sc-score .ur-star { font-size: 20px; }
+.ur-sc-score .ur-star.ur-star-img { width: 20px; height: 20px; }
+.ur-sc-count { margin-top: 8px; font-size: 12px; color: var(--ur-text-soft); }
+.ur-sc-count strong { color: var(--ur-text); font-weight: 600; }
+.ur-sc-recommend {
+  margin-top: 12px; display: inline-flex; align-items: center; gap: 6px;
+  padding: 6px 10px; border-radius: 8px; background: #f0fdf4; color: #166534; font-size: 12px;
+}
+.ur-sc-dot { width: 7px; height: 7px; border-radius: 50%; background: var(--ur-verified); flex-shrink: 0; }
+.ur-sc-write {
+  margin-top: 14px; display: block; width: 100%; background: var(--ur-text); color: #fff;
+  border: none; border-radius: 8px; padding: 12px 16px; font-size: 13px; font-weight: 600;
+}
+.ur-sc-write:hover { opacity: .9; }
+.ur-sc-dist { background: var(--ur-surface-soft); border-radius: 10px; padding: 12px 16px; display: flex; flex-direction: column; gap: 6px; }
+.ur-sc-media { margin-top: 18px; padding-top: 16px; border-top: 1px solid var(--ur-border-soft); }
+.ur-sc-media-head { display: flex; justify-content: space-between; align-items: center; gap: 12px; margin-bottom: 10px; }
+.ur-sc-media-title { font-size: 13px; font-weight: 600; }
+.ur-sc-link { background: none; border: none; padding: 0; font-size: 12px; color: var(--ur-text); text-decoration: underline; }
+.ur-sc-thumbs { display: flex; gap: 8px; overflow-x: auto; scrollbar-width: none; }
+.ur-sc-thumbs::-webkit-scrollbar { display: none; }
+.ur-sc-thumb {
+  position: relative; width: 64px; height: 64px; flex-shrink: 0; border-radius: 6px;
+  object-fit: cover; background: var(--ur-border-soft) center/cover; border: 1px solid var(--ur-border); cursor: zoom-in;
+}
+.ur-sc-thumb.video::after {
+  content: '▶'; position: absolute; inset: 0; display: flex; align-items: center; justify-content: center;
+  color: #fff; font-size: 16px; text-shadow: 0 1px 3px rgba(0,0,0,.5);
+}
+.ur-sc-toolbar { display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap; margin-bottom: 6px; }
+.ur-sc-chips { display: flex; gap: 6px; flex-wrap: wrap; }
+.ur-sc-chip {
+  display: inline-flex; align-items: center; gap: 4px; padding: 6px 12px; border-radius: 999px;
+  border: 1px solid var(--ur-border); background: var(--ur-surface); color: var(--ur-text); font-size: 12px;
+}
+.ur-sc-chip sup { font-size: 9px; opacity: .75; }
+.ur-sc-chip .ur-star { font-size: 12px; }
+.ur-sc-chip.active { background: var(--ur-text); border-color: var(--ur-text); color: #fff; }
+.ur-sc-sort { display: flex; align-items: center; gap: 8px; font-size: 12px; color: var(--ur-text-soft); }
+.ur-sc-note { font-size: 11px; color: var(--ur-text-muted); margin: 6px 0 12px; }
+.ur-sc-list { display: flex; flex-direction: column; gap: 10px; margin-top: 12px; }
+.ur-sc-card { display: flex; gap: 12px; padding: 14px 16px; border: 1px solid var(--ur-border); border-radius: 10px; background: var(--ur-surface); }
+.ur-sc-avatar {
+  width: 30px; height: 30px; border-radius: 50%; flex-shrink: 0; object-fit: cover;
+  background: var(--ur-border-soft); color: var(--ur-text-soft);
+  display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 600;
+}
+.ur-sc-main { min-width: 0; flex: 1; }
+.ur-sc-head { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.ur-sc-name { font-size: 13px; font-weight: 600; }
+.ur-sc-badge { display: inline-flex; align-items: center; gap: 5px; padding: 2px 8px; border-radius: 999px; font-size: 11px; font-weight: 500; }
+.ur-sc-verified { background: #f0fdf4; color: #166534; }
+.ur-sc-ai { background: var(--ur-border-soft); color: var(--ur-text); border: 1px solid var(--ur-border); font-size: 12px; }
+.ur-sc-meta { display: flex; align-items: center; gap: 8px; margin-top: 4px; }
+.ur-sc-meta .ur-star { font-size: 13px; }
+.ur-sc-date { font-size: 12px; color: var(--ur-text-soft); }
+.ur-sc-title { margin: 8px 0 0; font-size: 14px; font-weight: 600; }
+.ur-sc-body { margin: 6px 0 0; font-size: 13px; color: var(--ur-text); white-space: pre-line; overflow-wrap: anywhere; }
+.ur-sc-more { display: flex; flex-direction: column; align-items: center; gap: 8px; margin-top: 18px; }
+.ur-sc-more-btn { padding: 10px 20px; border: 1px solid var(--ur-border); border-radius: 8px; background: var(--ur-surface); font-size: 13px; color: var(--ur-text); }
+.ur-sc-more-btn:disabled { opacity: .6; cursor: default; }
+.ur-sc-shown { font-size: 11px; color: var(--ur-text-muted); }
+@media (max-width: 640px) {
+  .ur-sc-top { grid-template-columns: 1fr; gap: 16px; }
+  .ur-sc-toolbar { flex-direction: column; align-items: stretch; }
+}
+
 @media (max-width: 1023px) {
   .ur-list.layout-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; }
 }
@@ -803,6 +904,11 @@ class UniverReviewsWidget extends HTMLElement {
 
   private loading = true
   private votes: VoteState = {}
+
+  // Layout `showcase`: miniaturas da faixa "Fotos e vídeos de clientes" e o
+  // estado do botão "Carregar mais", que acumula páginas em vez de trocá-las.
+  private mediaStrip: ReviewMedia[] = []
+  private loadingMore = false
 
   private showReviewForm = false
   private showQuestionForm = false
@@ -998,6 +1104,7 @@ class UniverReviewsWidget extends HTMLElement {
       const tasks: Promise<void>[] = this.showReviews
         ? [this.fetchSummary(), this.fetchReviews()]
         : []
+      if (this.showReviews && this.layout === 'showcase') tasks.push(this.fetchMediaStrip())
       if (this.showQa) tasks.push(this.fetchQuestions())
       await Promise.all(tasks)
     } catch (e) {
@@ -1046,7 +1153,7 @@ class UniverReviewsWidget extends HTMLElement {
     this.summary = json.data
   }
 
-  private async fetchReviews() {
+  private async fetchReviews(append = false) {
     const params = new URLSearchParams({
       page: String(this.currentPage),
       per_page: String(this.perPage),
@@ -1055,6 +1162,7 @@ class UniverReviewsWidget extends HTMLElement {
     if (this.ratingFilter > 0) params.set('rating', String(this.ratingFilter))
     if (this.mediaFilter === 'with_photo') params.set('with_photo', 'true')
     if (this.mediaFilter === 'with_video') params.set('with_video', 'true')
+    if (this.mediaFilter === 'with_media') params.set('with_media', 'true')
     if (this.mediaFilter === 'verified') params.set('verified', 'true')
 
     const r = await fetch(
@@ -1066,9 +1174,38 @@ class UniverReviewsWidget extends HTMLElement {
       return
     }
     const json = await r.json()
-    this.reviews = json.data || []
+    const page: Review[] = json.data || []
+    this.reviews = append ? this.reviews.concat(page) : page
     this.totalPages = json.meta?.total_pages || 1
     this.totalCount = json.meta?.total_count || 0
+  }
+
+  // Faixa de mídia do layout `showcase`: as fotos e vídeos das avaliações
+  // mais recentes que têm mídia, independente dos filtros da lista.
+  private async fetchMediaStrip() {
+    const params = new URLSearchParams({ page: '1', per_page: '12', sort: 'created_at', with_media: 'true' })
+    const r = await fetch(
+      `${this.apiUrl}/api/v1/public/reviews/${this.productId}?${params}`,
+      { headers: { 'X-Univer-Domain': window.location.hostname } }
+    )
+    if (!r.ok) return
+    const json = await r.json()
+    const reviews: Review[] = json.data || []
+    this.mediaStrip = reviews.reduce<ReviewMedia[]>((acc, rv) => acc.concat(rv.media || []), []).slice(0, 8)
+  }
+
+  private async loadMore() {
+    if (this.loadingMore || this.currentPage >= this.totalPages) return
+    this.loadingMore = true
+    this.currentPage += 1
+    this.render()
+    try { await this.fetchReviews(true) }
+    catch (e) {
+      this.currentPage -= 1
+      console.warn('[univer-reviews]', e instanceof Error ? e.message : 'unknown')
+    }
+    this.loadingMore = false
+    this.render()
   }
 
   private async refresh() {
@@ -1150,15 +1287,20 @@ class UniverReviewsWidget extends HTMLElement {
     if (!this.productId) {
       return `<div class="ur-root"><div class="ur-empty">product-id is required</div></div>`
     }
+    const showcase = this.layout === 'showcase'
+    const summary = showcase ? this.renderShowcaseSummary() : this.renderSummary()
+    const toolbar = showcase ? this.renderShowcaseToolbar() : this.renderToolbar()
     if (this.loading && this.reviews.length === 0 && this.activeTab === 'reviews') {
-      return `<div class="ur-root">${this.renderSummary()}${this.renderTabs()}${this.renderToolbar()}<div class="ur-loading"><div class="ur-spinner"></div>${this.t('loading')}</div></div>`
+      return `<div class="ur-root">${summary}${this.renderTabs()}${toolbar}<div class="ur-loading"><div class="ur-spinner"></div>${this.t('loading')}</div></div>`
     }
     const body = this.activeTab === 'qa'
       ? this.renderQa()
-      : `${this.renderToolbar()}${this.renderList()}${this.totalPages > 1 ? this.renderPagination() : ''}`
+      : showcase
+        ? `${toolbar}${this.renderShowcaseList()}`
+        : `${toolbar}${this.renderList()}${this.totalPages > 1 ? this.renderPagination() : ''}`
     return `
 <div class="ur-root">
-  ${this.renderSummary()}
+  ${summary}
   ${this.renderTabs()}
   ${body}
   ${this.showReviewForm ? this.renderForm() : ''}
@@ -1345,18 +1487,7 @@ ${items.length === 0
   <div class="ur-card-stars">${this.renderStars(r.rating)}</div>
   ${r.title ? `<h3 class="ur-card-title">${escapeHtml(r.title)}</h3>` : ''}
   <p class="ur-card-body">${escapeHtml(r.body || '')}</p>
-  ${r.media.length > 0 ? `
-    <div class="ur-media-row">
-      ${r.media.map(m => `
-        <${m.type === 'video' ? 'div' : 'img'}
-          class="ur-media-thumb ${m.type === 'video' ? 'video' : ''}"
-          ${m.type === 'image' ? `src="${escapeHtml(m.thumb_url || m.url)}" alt="" loading="lazy"` : `style="background:url('${escapeHtml(m.thumb_url || '')}') center/cover"`}
-          data-lightbox="${escapeHtml(m.url)}"
-          data-type="${m.type}"
-        ${m.type === 'video' ? '></div>' : '/>'}
-      `).join('')}
-    </div>
-  ` : ''}
+  ${this.renderMediaRow(r.media, 'ur-media-row', 'ur-media-thumb')}
   ${r.replies && r.replies[0] ? `
     <div class="ur-reply">
       <div class="ur-reply-label">${this.t('store_reply')}</div>
@@ -1371,6 +1502,165 @@ ${items.length === 0
     <button class="ur-helpful ${userVote === 'unhelpful' ? 'voted' : ''}" data-vote="unhelpful" data-id="${r.id}">
       <span>👎</span><span>${r.unhelpful_count || 0}</span>
     </button>
+  </div>
+</article>`
+  }
+
+  // Miniaturas clicáveis (abrem o lightbox). Usada pelos cards e pela faixa
+  // "Fotos e vídeos de clientes" do layout `showcase`.
+  private renderMediaRow(media: ReviewMedia[], rowClass: string, thumbClass: string): string {
+    if (!media || media.length === 0) return ''
+    return `
+    <div class="${rowClass}">
+      ${media.map(m => `
+        <${m.type === 'video' ? 'div' : 'img'}
+          class="${thumbClass} ${m.type === 'video' ? 'video' : ''}"
+          ${m.type === 'image' ? `src="${escapeHtml(m.thumb_url || m.url)}" alt="" loading="lazy"` : `style="background:url('${escapeHtml(m.thumb_url || '')}') center/cover"`}
+          data-lightbox="${escapeHtml(m.url)}"
+          data-type="${m.type}"
+        ${m.type === 'video' ? '></div>' : '/>'}
+      `).join('')}
+    </div>`
+  }
+
+  // ─── Showcase layout ─────────────────────────────────────────────────────
+  // Vitrine de e-commerce: resumo em card (nota, % que recomenda, botão de
+  // escrever e distribuição), faixa de mídia dos clientes, chips de filtro
+  // com contagem e lista em coluna única com "Carregar mais".
+  //
+  // Os selos só dizem o que os dados sustentam: "verificadas" e "Compra
+  // verificada" vêm de `is_verified_purchase`, e uma avaliação escrita por IA
+  // sempre leva o rótulo de exemplo.
+  private renderShowcaseSummary(): string {
+    if (!this.showReviews) return ''
+    const s = this.summary
+    const total = s?.total_reviews ?? 0
+    const verified = s?.verified_count ?? 0
+    const avg = Number(s?.avg_rating ?? 0).toLocaleString(this.locale, { minimumFractionDigits: 1, maximumFractionDigits: 1 })
+    const dist = s?.rating_distribution ?? [5, 4, 3, 2, 1].map(r => ({ rating: r, count: 0, percentage: 0 }))
+    const reviewsWord = this.t('reviews').toLowerCase()
+    const count = total > 0 && verified === total
+      ? `<strong>${total}</strong> ${reviewsWord} ${this.t('sc_verified')}`
+      : `<strong>${total}</strong> ${reviewsWord}${verified > 0 ? ` · ${verified} ${this.t('sc_verified')}` : ''}`
+    const recommend = total > 0 && typeof s?.recommend_percentage === 'number'
+      ? `<div class="ur-sc-recommend"><span class="ur-sc-dot"></span><span><strong>${Math.round(s.recommend_percentage)}%</strong> ${this.t('sc_recommend')}</span></div>`
+      : ''
+
+    return `
+<section class="ur-sc-summary">
+  <div class="ur-sc-top">
+    <div>
+      <div class="ur-sc-score">
+        <span class="ur-sc-avg">${avg}</span>
+        <span>${this.renderStars(s?.avg_rating ?? 0)}</span>
+      </div>
+      <div class="ur-sc-count">${count}</div>
+      ${recommend}
+      ${this.showWriteReview ? `<button class="ur-sc-write" data-action="open-form">${this.t('sc_write')}</button>` : ''}
+    </div>
+    <div class="ur-sc-dist">
+      ${[5, 4, 3, 2, 1].map(r => {
+        const row = dist.find(d => d.rating === r) || { count: 0, percentage: 0 }
+        return `
+        <div class="ur-dist-row ${this.ratingFilter === r ? 'active' : ''}" data-rating="${r}">
+          <span class="ur-dist-label">${r}<span class="ur-dist-star">${this.renderStarInline()}</span></span>
+          <span class="ur-dist-bar"><span class="ur-dist-fill" style="width:${row.percentage}%"></span></span>
+          <span class="ur-dist-count">${row.count}</span>
+        </div>`
+      }).join('')}
+    </div>
+  </div>
+  ${this.mediaStrip.length > 0 ? `
+  <div class="ur-sc-media">
+    <div class="ur-sc-media-head">
+      <span class="ur-sc-media-title">${this.t('sc_media_title')}</span>
+      <button class="ur-sc-link" data-media="with_media">${this.t('sc_media_link')}</button>
+    </div>
+    ${this.renderMediaRow(this.mediaStrip, 'ur-sc-thumbs', 'ur-sc-thumb')}
+  </div>` : ''}
+</section>`
+  }
+
+  private renderShowcaseToolbar(): string {
+    const s = this.summary
+    const total = s?.total_reviews ?? 0
+    const media = s?.media_count ?? 0
+    const allActive = this.mediaFilter === 'all' && this.ratingFilter === 0
+    const starChips = (s?.rating_distribution ?? [])
+      .filter(d => d.count > 0)
+      .sort((a, b) => b.rating - a.rating)
+      .map(d => `
+      <button class="ur-sc-chip ${this.ratingFilter === d.rating ? 'active' : ''}" data-star="${d.rating}">
+        ${d.rating} <span class="ur-star">${this.renderStarInline()}</span><sup>${d.count}</sup>
+      </button>`).join('')
+    const allVerified = total > 0 && (s?.verified_count ?? 0) === total
+
+    return `
+<div class="ur-sc-toolbar">
+  <div class="ur-sc-chips">
+    <button class="ur-sc-chip ${allActive ? 'active' : ''}" data-media="all">${this.t('all_filter')}<sup>${total}</sup></button>
+    ${media > 0 ? `<button class="ur-sc-chip ${this.mediaFilter === 'with_media' ? 'active' : ''}" data-media="with_media">${this.t('sc_with_media')}<sup>${media}</sup></button>` : ''}
+    ${starChips}
+  </div>
+  <label class="ur-sc-sort">${this.t('sc_sort')}
+    <select class="ur-select" data-action="sort">
+      <option value="created_at" ${this.sortMode === 'created_at' ? 'selected' : ''}>${this.t('sort_recent')}</option>
+      <option value="oldest" ${this.sortMode === 'oldest' ? 'selected' : ''}>${this.t('sort_oldest')}</option>
+      <option value="helpful" ${this.sortMode === 'helpful' ? 'selected' : ''}>${this.t('sort_helpful')}</option>
+      <option value="rating" ${this.sortMode === 'rating' ? 'selected' : ''}>${this.t('sort_rating_high')}</option>
+    </select>
+  </label>
+</div>
+${allVerified ? `<div class="ur-sc-note">${this.t('sc_all_verified')}</div>` : ''}`
+  }
+
+  private renderShowcaseList(): string {
+    if (this.reviews.length === 0) {
+      return `<div class="ur-empty">${this.t('no_reviews')}</div>`
+    }
+    const hasMore = this.currentPage < this.totalPages
+    return `
+<div class="ur-sc-list">
+  ${this.reviews.map(r => this.renderShowcaseCard(r)).join('')}
+</div>
+<div class="ur-sc-more">
+  ${hasMore ? `<button class="ur-sc-more-btn" data-action="load-more" ${this.loadingMore ? 'disabled' : ''}>${this.loadingMore ? this.t('loading') : this.t('sc_load_more')}</button>` : ''}
+  <div class="ur-sc-shown">${this.t('showing')} ${this.reviews.length} ${this.t('of')} ${this.totalCount}</div>
+</div>`
+  }
+
+  private renderShowcaseCard(r: Review): string {
+    const name = r.author_name || 'Anônimo'
+    const avatar = r.author_avatar_url
+      ? `<img class="ur-sc-avatar" src="${escapeHtml(r.author_avatar_url)}" alt="" loading="lazy" />`
+      : `<div class="ur-sc-avatar">${initialOf(name)}</div>`
+    const d = new Date(r.created_at)
+    const date = Number.isNaN(d.getTime())
+      ? ''
+      : d.toLocaleDateString(this.locale, { day: '2-digit', month: '2-digit', year: 'numeric' })
+
+    return `
+<article class="ur-sc-card" data-id="${r.id}">
+  ${avatar}
+  <div class="ur-sc-main">
+    <div class="ur-sc-head">
+      <span class="ur-sc-name">${escapeHtml(name)}</span>
+      ${r.is_verified_purchase ? `<span class="ur-sc-badge ur-sc-verified"><span class="ur-sc-dot"></span>${this.t('verified')}</span>` : ''}
+      ${r.is_synthetic ? `<span class="ur-sc-badge ur-sc-ai">${this.t('ai_example')}</span>` : ''}
+    </div>
+    <div class="ur-sc-meta">
+      <span>${this.renderStars(r.rating)}</span>
+      ${date ? `<span class="ur-sc-date">${date}</span>` : ''}
+    </div>
+    ${r.title ? `<h3 class="ur-sc-title">${escapeHtml(r.title)}</h3>` : ''}
+    ${r.body ? `<p class="ur-sc-body">${escapeHtml(r.body)}</p>` : ''}
+    ${this.renderMediaRow(r.media, 'ur-media-row', 'ur-media-thumb')}
+    ${r.replies && r.replies[0] ? `
+      <div class="ur-reply">
+        <div class="ur-reply-label">${this.t('store_reply')}</div>
+        ${escapeHtml(r.replies[0].body)}
+      </div>
+    ` : ''}
   </div>
 </article>`
   }
@@ -1521,6 +1811,20 @@ ${items.length === 0
         this.currentPage = 1
         void this.refresh()
       })
+    })
+
+    // Chips de nota do layout `showcase` (a distribuição usa `.ur-dist-row`).
+    root.querySelectorAll<HTMLButtonElement>('[data-star]').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const r = parseInt(btn.dataset.star || '0', 10) as RatingFilter
+        this.ratingFilter = this.ratingFilter === r ? 0 : r
+        this.currentPage = 1
+        void this.refresh()
+      })
+    })
+
+    root.querySelector('[data-action="load-more"]')?.addEventListener('click', () => {
+      void this.loadMore()
     })
 
     root.querySelector<HTMLSelectElement>('[data-action="sort"]')?.addEventListener('change', e => {

@@ -77,6 +77,9 @@ module Api
 
           total = approved.count
           avg   = approved.average(:rating)&.round(2) || 0.0
+          # O layout `showcase` do widget mostra "N verificadas", o chip "Com
+          # foto ou vídeo" e "X% recomendam" (nota 4 ou 5) a partir daqui.
+          recommend = total.positive? ? (approved.where(rating: 4..5).count.to_f / total * 100).round(1) : 0.0
 
           dist  = (1..5).map { |r|
             count = approved.where(rating: r).count
@@ -89,6 +92,9 @@ module Api
               total_reviews: total,
               avg_rating: avg,
               rating_distribution: dist,
+              verified_count: approved.where(is_verified_purchase: true).count,
+              media_count: approved.with_media.count,
+              recommend_percentage: recommend,
               featured: approved.where(is_featured: true).limit(3).map { |r| public_serialize(r) }
             }
           }
@@ -690,6 +696,9 @@ module Api
             author_avatar_url: review.author_avatar_url,
             is_verified_purchase: review.is_verified_purchase,
             is_featured: review.is_featured,
+            # Os mesmos dois marcadores de Review.real: escrita por IA se
+            # qualquer um disser que sim. O widget rotula essas avaliações.
+            is_synthetic: review.ai_is_synthetic == true || review.metadata.to_h["ai_generated"].to_s == "true",
             helpful_count: review.helpful_count.to_i,
             unhelpful_count: review.unhelpful_count.to_i,
             language: review.language,
