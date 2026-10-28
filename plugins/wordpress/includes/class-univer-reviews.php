@@ -18,12 +18,14 @@ final class Univer_Reviews {
     private Univer_SaaS_Sync $sync;
     private Univer_Admin $admin;
     private Univer_Shortcode $shortcode;
+    private Univer_Vitrine $vitrine;
 
     // ─── Singleton ────────────────────────────────────────────────────────────
 
     private function __construct() {
         $this->sync      = new Univer_SaaS_Sync();
         $this->shortcode = new Univer_Shortcode();
+        $this->vitrine   = new Univer_Vitrine();
 
         if ( is_admin() ) {
             $this->admin = new Univer_Admin();
@@ -112,8 +114,10 @@ final class Univer_Reviews {
                 if ( ! $product ) {
                     return;
                 }
+                // Módulo Vitrine ligado → a aba usa o layout de loja.
                 echo do_shortcode( sprintf(
-                    '[univer_reviews product_id="%d"]',
+                    '[%s product_id="%d"]',
+                    Univer_Vitrine::on_product_tab() ? Univer_Vitrine::SHORTCODE : 'univer_reviews',
                     (int) $product->get_id()
                 ) );
             },
@@ -183,8 +187,15 @@ final class Univer_Reviews {
             return;
         }
 
-        // Only load widget script if page contains the shortcode
-        if ( ! has_shortcode( $post->post_content, 'univer_reviews' ) ) {
+        // Only load widget script if page contains one of the widget shortcodes
+        $has_widget = false;
+        foreach ( [ 'univer_reviews', Univer_Vitrine::SHORTCODE, 'univer_showcase' ] as $tag ) {
+            if ( has_shortcode( $post->post_content, $tag ) ) {
+                $has_widget = true;
+                break;
+            }
+        }
+        if ( ! $has_widget ) {
             return;
         }
 

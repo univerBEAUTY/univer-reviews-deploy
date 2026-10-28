@@ -3,7 +3,7 @@
  * Plugin Name:       UniverReviews
  * Plugin URI:        https://univerreviews.com
  * Description:       Integração com a plataforma UniverReviews — sincronize avaliações com IA, exiba o widget e gerencie respostas diretamente no WordPress.
- * Version:           0.7.7
+ * Version:           0.7.8
  * Requires at least: 6.0
  * Requires PHP:      8.1
  * Author:            UniverReviews
@@ -24,7 +24,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
-define( 'UNIVER_VERSION',     '0.7.7' );
+define( 'UNIVER_VERSION',     '0.7.8' );
 define( 'UNIVER_PLUGIN_DIR',  plugin_dir_path( __FILE__ ) );
 define( 'UNIVER_PLUGIN_URL',  plugin_dir_url( __FILE__ ) );
 define( 'UNIVER_API_URL',     'https://api.univerreviews.com' );
@@ -55,6 +55,7 @@ $includes = [
     'includes/class-saas-sync.php',
     'includes/class-admin.php',
     'includes/class-shortcode.php',
+    'includes/class-vitrine.php',
 ];
 
 foreach ( $includes as $file ) {
@@ -107,6 +108,7 @@ function univer_reviews_uninstall(): void {
         'univer_workspace_id', 'univer_widget_layout', 'univer_widget_locale',
         'univer_widget_theme_color', 'univer_sync_enabled', 'univer_auto_pull',
         'univer_last_pull_at', 'univer_last_push_at',
+        'univer_vitrine_on_product_tab', 'univer_vitrine_per_page', 'univer_vitrine_show_write_review',
     ];
 
     foreach ( $options as $option ) {

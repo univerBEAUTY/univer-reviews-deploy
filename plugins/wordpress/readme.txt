@@ -23,6 +23,7 @@ O **UniverReviews** conecta sua loja WooCommerce à plataforma de reviews com IA
 * **Respostas sugeridas por IA** — gere respostas profissionais para cada avaliação com um clique
 * **Importação em lote** — importe reviews de CSV, WooCommerce ou Shopify
 * **Suporte a shortcode** — `[univer_reviews product_id="123"]`
+* **Módulo Vitrine** — `[univer_vitrine]`, avaliações no estilo de loja com resumo, fotos e vídeos dos clientes, filtros por nota e "Carregar mais"
 * **Bloco Gutenberg** — arraste e solte o widget na sua página de produto
 * **Programa de recompensas** — ofereça cupons automáticos para quem deixar uma avaliação
 
@@ -80,6 +81,9 @@ Avaliações são armazenadas na infraestrutura do UniverReviews (data centers n
 5. Widget em layout carousel
 
 == Changelog ==
+
+= 0.7.8 =
+* Novo módulo Vitrine: shortcode `[univer_vitrine]` (alias `[univer_showcase]`) e opção de usá-lo na aba de avaliações do WooCommerce
 
 = 0.1.0 =
 * Lançamento inicial

@@ -98,6 +98,10 @@ class Univer_Admin {
             'univer_auto_tab'                 => [ 'sanitize_callback' => 'sanitize_text_field' ],
             'univer_auto_loop_rating'         => [ 'sanitize_callback' => 'sanitize_text_field' ],
             'univer_replace_default_reviews'  => [ 'sanitize_callback' => 'sanitize_text_field' ],
+            // ── Módulo Vitrine ───────────────────────────────────────────────
+            'univer_vitrine_on_product_tab'    => [ 'sanitize_callback' => 'sanitize_text_field' ],
+            'univer_vitrine_show_write_review' => [ 'sanitize_callback' => 'sanitize_text_field' ],
+            'univer_vitrine_per_page'          => [ 'sanitize_callback' => 'absint' ],
         ];
 
         foreach ( $settings as $option => $args ) {
@@ -463,6 +467,8 @@ class Univer_Admin {
 
                 <?php $this->render_display_section( $show_qa, $show_write_review, $per_page ); ?>
 
+                <?php $this->render_vitrine_section(); ?>
+
                 <?php $this->render_custom_css_section( $custom_css ); ?>
 
                 <hr>
@@ -749,6 +755,59 @@ class Univer_Admin {
                     <td>
                         <input type="number" id="univer_widget_per_page" name="univer_widget_per_page" min="1" max="100" value="<?php echo esc_attr( (string) $per_page ); ?>" class="small-text">
                         <p class="description"><?php esc_html_e( 'Quantidade exibida por carregamento. Mínimo 1, máximo 100. Padrão 10.', 'univer-reviews' ); ?></p>
+                    </td>
+                </tr>
+            </table>
+        </div>
+        <?php
+    }
+
+    /**
+     * Módulo Vitrine — bloco de avaliações estilo loja, com shortcode próprio
+     * ([univer_vitrine]) e opção de assumir a aba de avaliações do WooCommerce.
+     */
+    private function render_vitrine_section(): void {
+        $on_tab   = (string) get_option( 'univer_vitrine_on_product_tab', '0' );
+        $show_wr  = (string) get_option( 'univer_vitrine_show_write_review', '1' );
+        $per_page = (int) get_option( 'univer_vitrine_per_page', 0 );
+        ?>
+        <div class="univer-section-card" style="background:#fff;border:1px solid #dcdcde;border-radius:8px;padding:20px 24px;margin:16px 0;">
+            <h2 style="margin-top:0;border-bottom:1px solid #f0f0f1;padding-bottom:12px;"><?php esc_html_e( 'Módulo Vitrine', 'univer-reviews' ); ?></h2>
+            <p class="description" style="margin-bottom:20px;">
+                <?php esc_html_e( 'Avaliações no estilo de loja: card de resumo com % que recomenda, fotos e vídeos dos clientes, filtros por nota, selo de compra verificada e botão "Carregar mais". Funciona sozinho, sem mudar o layout escolhido em Aparência.', 'univer-reviews' ); ?>
+            </p>
+            <table class="form-table" role="presentation">
+                <tr>
+                    <th scope="row"><?php esc_html_e( 'Shortcode', 'univer-reviews' ); ?></th>
+                    <td>
+                        <code style="display:inline-block;background:#f0f0f1;padding:4px 8px;border-radius:3px;font-size:13px;">[<?php echo esc_html( Univer_Vitrine::SHORTCODE ); ?>]</code>
+                        <p class="description"><?php esc_html_e( 'Cole em qualquer página. Em página de produto o produto é detectado sozinho; fora dela use product_id="123". Atributos opcionais: per_page, show_write_review, locale, theme_color, star_color, class.', 'univer-reviews' ); ?></p>
+                    </td>
+                </tr>
+                <tr>
+                    <th scope="row"><?php esc_html_e( 'Aba do produto', 'univer-reviews' ); ?></th>
+                    <td>
+                        <label>
+                            <input type="checkbox" name="univer_vitrine_on_product_tab" value="1" <?php checked( $on_tab, '1' ); ?>>
+                            <?php esc_html_e( 'Usar a Vitrine na aba "Avaliações" do WooCommerce', 'univer-reviews' ); ?>
+                        </label>
+                        <p class="description"><?php esc_html_e( 'Requer "Aba automática" ligada na seção WooCommerce.', 'univer-reviews' ); ?></p>
+                    </td>
+                </tr>
+                <tr>
+                    <th scope="row"><?php esc_html_e( 'Botão "Escrever avaliação"', 'univer-reviews' ); ?></th>
+                    <td>
+                        <label>
+                            <input type="checkbox" name="univer_vitrine_show_write_review" value="1" <?php checked( $show_wr, '1' ); ?>>
+                            <?php esc_html_e( 'Mostrar o botão no card de resumo da Vitrine', 'univer-reviews' ); ?>
+                        </label>
+                    </td>
+                </tr>
+                <tr>
+                    <th scope="row"><label for="univer_vitrine_per_page"><?php esc_html_e( 'Avaliações por carregamento', 'univer-reviews' ); ?></label></th>
+                    <td>
+                        <input type="number" id="univer_vitrine_per_page" name="univer_vitrine_per_page" min="0" max="100" value="<?php echo esc_attr( (string) $per_page ); ?>" class="small-text">
+                        <p class="description"><?php esc_html_e( 'Quantas aparecem de início e a cada "Carregar mais". 0 usa a configuração do painel UniverReviews.', 'univer-reviews' ); ?></p>
                     </td>
                 </tr>
             </table>
